@@ -1,10 +1,10 @@
 import { FaucetForm } from "./components/FaucetForm";
 import { getServerSession } from "next-auth/next";
 import { SignInButton } from "./components/SignInButton";
-import { auth } from "./api/auth/[...nextauth]/route";
+import { authOptions } from "./lib/auth";
 
 export default async function Home() {
-  const session = await getServerSession(auth);
+  const session = await getServerSession(authOptions);
   const faucetAddress = process.env.NEXT_PUBLIC_FAUCET_ADDRESS;
   const airdropAmount = process.env.NEXT_PUBLIC_AIRDROP_AMOUNT;
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Connection, PublicKey, clusterApiUrl, LAMPORTS_PER_SOL } from '@solana/web3.js';
 import airdrop from "@/app/airdrop";
 
@@ -20,7 +20,7 @@ export function FaucetForm({ faucetAddress, airdropAmount }: FaucetFormProps) {
     setAirdropResult(result);
   };
 
-  const getFaucetBalance = async () => {
+  const getFaucetBalance = useCallback(async () => {
     if(!faucetAddress) return 'No faucet!';
     const connection = new Connection(clusterApiUrl('devnet'), 'confirmed');
     const faucetPublicKey = new PublicKey(faucetAddress);
@@ -28,11 +28,11 @@ export function FaucetForm({ faucetAddress, airdropAmount }: FaucetFormProps) {
     const balanceInSol = balanceInLamports / LAMPORTS_PER_SOL;
     if(parseInt(balanceInSol.toFixed(2)) < 2) setFaucetEmpty(true);
     return balanceInSol.toFixed(2) + ' SOL';
-  };
+  }, [faucetAddress]);
 
   useEffect(() => {
     getFaucetBalance().then(balance => setFaucetBalance(balance));
-  }, [airdropResult, faucetAddress]);
+  }, [airdropResult, getFaucetBalance]);
 
   return (
     <form action={handleSubmit} className="flex flex-col items-center justify-center space-y-4 w-full max-w-2xl px-4">
