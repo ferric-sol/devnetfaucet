@@ -1,7 +1,7 @@
 import { FaucetForm } from "./components/FaucetForm";
 import { getServerSession } from "next-auth/next";
 import { SignInButton } from "./components/SignInButton";
-import { authOptions } from '@/auth/config';
+import { authOptions } from './lib/auth';
 
 export default async function Home() {
   const session = await getServerSession(authOptions);
