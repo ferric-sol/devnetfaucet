@@ -5,7 +5,7 @@ import { unstable_noStore as noStore } from 'next/cache';
 import { kv } from "@vercel/kv";
 import { getServerSession } from "next-auth/next";
 import { parse as parseTOML } from '@iarna/toml';
-import { authOptions } from './config/auth.config';
+import { authOptions } from './api/auth/[...nextauth]/options';
 
 interface Repository {
   url: string;
