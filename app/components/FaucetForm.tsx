@@ -22,16 +22,34 @@ export function FaucetForm({ faucetAddress, airdropAmount }: FaucetFormProps) {
 
   const getFaucetBalance = useCallback(async () => {
     if(!faucetAddress) return 'No faucet!';
-    const connection = new Connection(clusterApiUrl('devnet'), 'confirmed');
-    const faucetPublicKey = new PublicKey(faucetAddress);
-    const balanceInLamports = await connection.getBalance(faucetPublicKey);
-    const balanceInSol = balanceInLamports / LAMPORTS_PER_SOL;
-    if(parseInt(balanceInSol.toFixed(2)) < 2) setFaucetEmpty(true);
-    return balanceInSol.toFixed(2) + ' SOL';
+    try {
+      const connection = new Connection(clusterApiUrl('devnet'), 'confirmed');
+      const faucetPublicKey = new PublicKey(faucetAddress);
+      const balanceInLamports = await connection.getBalance(faucetPublicKey);
+      const balanceInSol = balanceInLamports / LAMPORTS_PER_SOL;
+      setFaucetEmpty(parseInt(balanceInSol.toFixed(2)) < 2);
+      return balanceInSol.toFixed(2) + ' SOL';
+    } catch (error) {
+      console.error('Error fetching balance:', error);
+      return 'Error fetching balance';
+    }
   }, [faucetAddress]);
 
   useEffect(() => {
-    getFaucetBalance().then(balance => setFaucetBalance(balance));
+    let mounted = true;
+
+    const updateBalance = async () => {
+      const balance = await getFaucetBalance();
+      if (mounted) {
+        setFaucetBalance(balance);
+      }
+    };
+
+    updateBalance();
+
+    return () => {
+      mounted = false;
+    };
   }, [airdropResult, getFaucetBalance]);
 
   return (
@@ -51,6 +69,7 @@ export function FaucetForm({ faucetAddress, airdropAmount }: FaucetFormProps) {
         <button
           type="submit"
           className="px-4 py-2 bg-blue-500 text-white rounded-r-md hover:bg-blue-600 focus:ring-4 focus:ring-blue-300"
+          disabled={faucetEmpty}
         >
           Airdrop!
         </button>
