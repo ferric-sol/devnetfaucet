@@ -2,11 +2,62 @@ import { FaucetForm } from "./components/FaucetForm";
 import { getServerSession } from "next-auth/next";
 import { SignInButton } from "./components/SignInButton";
 import { authOptions } from './lib/auth';
+import { getRecentAirdrops, AirdropRecord } from './airdrop';
+import { formatDistanceToNow } from 'date-fns';
+
+// Component to display recent airdrops
+function RecentAirdrops({ airdrops }: { airdrops: AirdropRecord[] }) {
+  if (airdrops.length === 0) {
+    return <p className="text-center text-gray-500 italic">No recent airdrops</p>;
+  }
+
+  return (
+    <div className="w-full max-w-2xl mx-auto mt-8 mb-8">
+      <h2 className="text-xl font-bold mb-4 text-center">Recent Airdrops</h2>
+      <div className="bg-gray-100 dark:bg-zinc-800/30 rounded-xl border p-4 overflow-hidden">
+        <table className="w-full">
+          <thead>
+            <tr className="border-b dark:border-gray-700">
+              <th className="text-left py-2 px-2">GitHub User</th>
+              <th className="text-left py-2 px-2">Wallet</th>
+              <th className="text-left py-2 px-2">When</th>
+            </tr>
+          </thead>
+          <tbody>
+            {airdrops.map((airdrop, index) => (
+              <tr key={index} className="border-b dark:border-gray-700 last:border-0">
+                <td className="py-2 px-2">
+                  <a 
+                    href={`https://github.com/${airdrop.username}`} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="text-blue-600 dark:text-blue-400 hover:underline"
+                  >
+                    {airdrop.username}
+                  </a>
+                </td>
+                <td className="py-2 px-2 font-mono text-xs">
+                  {airdrop.walletAddress.substring(0, 4)}...{airdrop.walletAddress.substring(airdrop.walletAddress.length - 4)}
+                </td>
+                <td className="py-2 px-2 text-sm">
+                  {formatDistanceToNow(airdrop.timestamp, { addSuffix: true })}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
 
 export default async function Home() {
   const session = await getServerSession(authOptions);
   const faucetAddress = process.env.NEXT_PUBLIC_FAUCET_ADDRESS;
   const airdropAmount = process.env.NEXT_PUBLIC_AIRDROP_AMOUNT;
+  
+  // Get recent airdrops
+  const recentAirdrops = await getRecentAirdrops(10);
 
   return (
     <main className="relative min-h-screen flex flex-col items-center justify-between p-4 lg:p-24">
@@ -34,6 +85,9 @@ export default async function Home() {
           airdropAmount={airdropAmount} 
         />
       )}
+
+      {/* Display recent airdrops */}
+      <RecentAirdrops airdrops={recentAirdrops} />
 
       <footer className="self-stretch text-center font-mono text-sm mt-4">
         Other Devnet Faucets: &nbsp;        

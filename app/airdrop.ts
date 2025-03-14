@@ -18,6 +18,92 @@ interface TomlData {
   repo?: Repository[];
 }
 
+// In-memory fallback for KV storage when environment variables are missing
+const inMemoryStore = new Map<string, number>();
+const inMemoryAirdropHistory = new Array<AirdropRecord>();
+
+// Define the structure for airdrop records
+export interface AirdropRecord {
+  username: string;
+  walletAddress: string;
+  timestamp: number;
+}
+
+// Helper function to safely use KV or fallback to in-memory storage
+async function safeKvGet(key: string): Promise<string | null> {
+  try {
+    return await kv.get(key);
+  } catch (error) {
+    console.log('KV get error, using in-memory fallback:', error);
+    const value = inMemoryStore.get(key);
+    return value ? String(value) : null;
+  }
+}
+
+// Helper function to safely set KV or fallback to in-memory storage
+async function safeKvSet(key: string, value: any): Promise<void> {
+  try {
+    await kv.set(key, value);
+  } catch (error) {
+    console.log('KV set error, using in-memory fallback:', error);
+    inMemoryStore.set(key, value);
+  }
+}
+
+// Function to store airdrop record
+async function storeAirdropRecord(record: AirdropRecord): Promise<void> {
+  try {
+    // Get existing records
+    let history: AirdropRecord[] = [];
+    try {
+      const existingHistory = await kv.get('airdrop_history') as AirdropRecord[] | null;
+      if (existingHistory) {
+        history = existingHistory;
+      }
+    } catch (error) {
+      console.log('Error getting airdrop history, using in-memory fallback:', error);
+      history = [...inMemoryAirdropHistory];
+    }
+
+    // Add new record to the beginning of the array
+    history.unshift(record);
+    
+    // Keep only the last 100 records
+    if (history.length > 100) {
+      history = history.slice(0, 100);
+    }
+
+    // Store updated history
+    try {
+      await kv.set('airdrop_history', history);
+    } catch (error) {
+      console.log('Error storing airdrop history, using in-memory fallback:', error);
+      // Update in-memory history
+      inMemoryAirdropHistory.unshift(record);
+      if (inMemoryAirdropHistory.length > 100) {
+        inMemoryAirdropHistory.length = 100;
+      }
+    }
+  } catch (error) {
+    console.error('Failed to store airdrop record:', error);
+  }
+}
+
+// Function to get recent airdrops
+export async function getRecentAirdrops(limit: number = 10): Promise<AirdropRecord[]> {
+  try {
+    const history = await kv.get('airdrop_history') as AirdropRecord[] | null;
+    if (history) {
+      return history.slice(0, limit);
+    }
+  } catch (error) {
+    console.log('Error getting airdrop history, using in-memory fallback:', error);
+    return [...inMemoryAirdropHistory].slice(0, limit);
+  }
+  
+  return [];
+}
+
 async function fetchAndParseToml() {
   const response = await fetch('https://raw.githubusercontent.com/electric-capital/crypto-ecosystems/refs/heads/master/data/ecosystems/s/solana.toml');
   const tomlContent = await response.text();
@@ -113,6 +199,19 @@ export default async function airdrop(formData: FormData) {
       return 'No eligible repository found in Solana ecosystem';
     }
 
+    // Check if this GitHub user has received an airdrop recently
+    // Use the username as the key instead of wallet address
+    const lastAirdropTimestampString = await safeKvGet(`user:${githubUsername}`);
+    const lastAirdropTimestamp = lastAirdropTimestampString ? parseInt(lastAirdropTimestampString) : null;
+
+    const TIMEOUT_HOURS = Number(process.env.TIMEOUT_HOURS) || 24;
+    const oneHourAgo = Date.now() - TIMEOUT_HOURS * 60 * 60 * 1000;
+
+    if (lastAirdropTimestamp && lastAirdropTimestamp > oneHourAgo) {
+      const minutesLeft = Math.ceil((lastAirdropTimestamp - oneHourAgo) / 60000);
+      return `Try again in ${minutesLeft} minutes`;
+    }
+
     const walletAddress = formData.get('walletAddress');
     try { 
       if (!walletAddress || walletAddress === null) {
@@ -121,17 +220,6 @@ export default async function airdrop(formData: FormData) {
 
       const connection = new Connection(clusterApiUrl('devnet'), 'confirmed');
       const walletAddressString = walletAddress?.toString();
-
-      const lastAirdropTimestampString = String(await kv.get(walletAddressString));
-      const lastAirdropTimestamp = lastAirdropTimestampString ? parseInt(lastAirdropTimestampString) : null;
-
-      const TIMEOUT_HOURS = Number(process.env.TIMEOUT_HOURS) || 24;
-      const oneHourAgo = Date.now() - TIMEOUT_HOURS * 60 * 60 * 1000;
-
-      if (lastAirdropTimestamp && lastAirdropTimestamp > oneHourAgo) {
-        const minutesLeft = Math.ceil((lastAirdropTimestamp - oneHourAgo) / 60000);
-        return `Try again in ${minutesLeft} minutes`;
-      } 
 
       const secretKey = process.env.SENDER_SECRET_KEY;
       if(!secretKey) return 'Airdrop failed';
@@ -160,7 +248,16 @@ export default async function airdrop(formData: FormData) {
         [senderKeypair]
       );
 
-      kv.set(walletAddress as string, Date.now());
+      // Store the timestamp using the GitHub username as the key
+      const now = Date.now();
+      await safeKvSet(`user:${githubUsername}`, now);
+      
+      // Store airdrop record
+      await storeAirdropRecord({
+        username: githubUsername,
+        walletAddress: walletAddressString,
+        timestamp: now
+      });
 
       return 'Airdrop successful';
     } catch(error) {
