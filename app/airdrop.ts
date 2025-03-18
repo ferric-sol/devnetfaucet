@@ -170,9 +170,12 @@ async function checkUserHasRepo(username: string) {
     const repoUrl = repo.url.toLowerCase();
     
     // Try different patterns that might match
-    const directMatch = repoUrl.includes(`github.com/${username.toLowerCase()}/`);
-    const cleanMatch = repoUrl.includes(`github.com/${cleanUsername}/`);
+    const githubPattern = new RegExp(`(?:https?://)?(?:www\\.)?github\\.com/${username.toLowerCase()}(?:/|$)`);
+    const githubPatternClean = new RegExp(`(?:https?://)?(?:www\\.)?github\\.com/${cleanUsername}(?:/|$)`);
     
+    const directMatch = githubPattern.test(repoUrl);
+    const cleanMatch = githubPatternClean.test(repoUrl);
+
     if (directMatch || cleanMatch) {
       console.log('Found matching repo:', repo.url);
       return true;
@@ -215,9 +218,6 @@ export default async function airdrop(formData: FormData) {
       req: { cookies: cookies() } as any,
       secret: process.env.NEXTAUTH_SECRET
     });
-    
-    console.log('session: ', session);
-    console.log('token: ', token);
     
     if (!session || !session.user) {
       return 'Please sign in with GitHub first';
