@@ -104,10 +104,55 @@ export async function getRecentAirdrops(limit: number = 10): Promise<AirdropReco
   return [];
 }
 
+// Cache key for the TOML data
+const TOML_CACHE_KEY = 'solana_ecosystem_github_usernames';
+const TOML_CACHE_EXPIRY = 60 * 60; // 1 hour in seconds
+
 async function fetchAndParseToml() {
+  // Try to get the cached data first
+  try {
+    const cachedData = await kv.get(TOML_CACHE_KEY) as string[] | null;
+    if (cachedData) {
+      console.log('Using cached GitHub usernames from TOML');
+      return { repo: cachedData.map(username => ({ url: `https://github.com/${username}` })) };
+    }
+  } catch (error) {
+    console.log('Error getting cached TOML data:', error);
+  }
+
+  // If cache miss or error, fetch the data
+  console.log('Fetching fresh TOML data');
   const response = await fetch('https://raw.githubusercontent.com/electric-capital/crypto-ecosystems/refs/heads/master/data/ecosystems/s/solana.toml');
   const tomlContent = await response.text();
-  return parseTOML(tomlContent) as TomlData;
+  const data = parseTOML(tomlContent) as TomlData;
+  
+  // Extract GitHub usernames and cache them
+  try {
+    const githubUsernames: string[] = [];
+    data.repo?.forEach(repo => {
+      const url = repo.url.toLowerCase();
+      if (url.includes('github.com/')) {
+        const match = url.match(/github\.com\/([a-z0-9-]+)/i);
+        if (match && match[1]) {
+          githubUsernames.push(match[1]);
+        }
+      }
+    });
+    
+    // Cache the extracted usernames
+    if (githubUsernames.length > 0) {
+      try {
+        await kv.set(TOML_CACHE_KEY, githubUsernames, { ex: TOML_CACHE_EXPIRY });
+        console.log(`Cached ${githubUsernames.length} GitHub usernames from TOML data`);
+      } catch (error) {
+        console.log('Error caching TOML data:', error);
+      }
+    }
+  } catch (error) {
+    console.log('Error processing TOML data for caching:', error);
+  }
+  
+  return data;
 }
 
 async function checkUserHasRepo(username: string) {
@@ -123,7 +168,6 @@ async function checkUserHasRepo(username: string) {
   
   return repos.some((repo) => {
     const repoUrl = repo.url.toLowerCase();
-    console.log('Comparing with repoUrl:', repoUrl);
     
     // Try different patterns that might match
     const directMatch = repoUrl.includes(`github.com/${username.toLowerCase()}/`);
