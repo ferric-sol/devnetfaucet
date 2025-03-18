@@ -87,7 +87,7 @@ export default async function Home() {
         
         <div className="flex flex-wrap justify-center md:justify-end gap-2">
           <a 
-            href="https://github.com/stakeware/devnetfaucet" 
+            href="https://github.com/ferric-sol/devnetfaucet" 
             target="_blank" 
             rel="noopener noreferrer"
             className="font-mono text-sm rounded-xl border bg-white dark:bg-zinc-800/70 p-3 shadow-md hover:shadow-lg transition-shadow flex items-center"
@@ -99,7 +99,7 @@ export default async function Home() {
           </a>
           
           <a 
-            href="https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fstakeware%2Fdevnetfaucet&env=NEXT_PUBLIC_FAUCET_ADDRESS,SENDER_SECRET_KEY,NEXT_PUBLIC_AIRDROP_AMOUNT&envDescription=Faucet%20address%2C%20airdrop%20amount%2C%20and%20the%20faucet%27s%20private%20key%20are%20all%20that%20you%20need&project-name=sol-devnet-faucet&repository-name=sol-devnet-faucet&redirect-url=https%3A%2F%2Fdevnetfaucet.org&demo-title=Devnet%20Faucet&demo-description=A%20faucet%20for%20getting%20devnet%20tokens%20on%20Solana&demo-url=https%3A%2F%2Fdevnetfaucet.org&demo-image=https%3A%2F%2Fwww.stakeware.xyz%2Flogo.webp" 
+            href="https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fferric-sol%2Fdevnetfaucet&env=NEXT_PUBLIC_FAUCET_ADDRESS,SENDER_SECRET_KEY,NEXT_PUBLIC_AIRDROP_AMOUNT&envDescription=Faucet%20address%2C%20airdrop%20amount%2C%20and%20the%20faucet%27s%20private%20key%20are%20all%20that%20you%20need&project-name=sol-devnet-faucet&repository-name=sol-devnet-faucet&redirect-url=https%3A%2F%2Fdevnetfaucet.org&demo-title=Devnet%20Faucet&demo-description=A%20faucet%20for%20getting%20devnet%20tokens%20on%20Solana&demo-url=https%3A%2F%2Fdevnetfaucet.org&demo-image=https%3A%2F%2Fwww.stakeware.xyz%2Flogo.webp" 
             target="_blank" 
             rel="noopener noreferrer"
             className="font-mono text-sm rounded-xl border bg-white dark:bg-zinc-800/70 p-3 shadow-md hover:shadow-lg transition-shadow flex items-center"
