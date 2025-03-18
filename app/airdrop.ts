@@ -263,7 +263,7 @@ export default async function airdrop(formData: FormData) {
       }
 
       const connection = new Connection(clusterApiUrl('devnet'), 'confirmed');
-      const walletAddressString = walletAddress?.toString();
+      const walletAddressString = walletAddress?.toString().trim();
 
       const secretKey = process.env.SENDER_SECRET_KEY;
       if(!secretKey) return 'Airdrop failed';
