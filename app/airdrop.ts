@@ -269,8 +269,8 @@ export default async function airdrop(formData: FormData) {
       if(!secretKey) return 'Airdrop failed';
 
       // Changed to 100 SOL as requested
-      const airdropAmount = 100;
-      const airdropAmountLamports = airdropAmount * LAMPORTS_PER_SOL;
+      const airdropAmount = process.env.NEXT_PUBLIC_AIRDROP_AMOUNT;
+      const airdropAmountLamports = airdropAmount ? Number(airdropAmount) * LAMPORTS_PER_SOL : 0;
 
       const secretKeyUint8Array = new Uint8Array(
         secretKey.split(',').map((num) => parseInt(num, 10))
