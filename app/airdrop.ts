@@ -265,6 +265,13 @@ export default async function airdrop(formData: FormData) {
       const connection = new Connection(clusterApiUrl('devnet'), 'confirmed');
       const walletAddressString = walletAddress?.toString().trim();
 
+      // Validate wallet address format
+      try {
+        new PublicKey(walletAddressString);
+      } catch (error) {
+        return 'Invalid Solana wallet address format';
+      }
+
       const secretKey = process.env.SENDER_SECRET_KEY;
       if(!secretKey) return 'Airdrop failed';
 
