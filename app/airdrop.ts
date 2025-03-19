@@ -240,7 +240,12 @@ export default async function airdrop(formData: FormData) {
     
     console.log('Using GitHub username:', githubUsername);
     const hasRepo = await checkUserHasRepo(githubUsername);
-    if (!hasRepo) {
+    
+    // Check if user is whitelisted
+    const whitelistedUsers = await kv.get('whitelisted_users') as any[] || [];
+    const isWhitelisted = whitelistedUsers.some(user => user.username === githubUsername);
+    
+    if (!hasRepo && !isWhitelisted) {
       return 'NO_REPO_FOUND';
     }
 
