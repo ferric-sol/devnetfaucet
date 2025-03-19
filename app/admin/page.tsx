@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useSession } from "next-auth/react";
+import { useEffect, useState } from 'react';
+import { useSession } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
 import { formatDistanceToNow } from 'date-fns';
 
 interface AccessRequest {
@@ -14,36 +15,55 @@ interface WhitelistedUser {
   approvedAt: number;
 }
 
+interface AirdropRecord {
+  username: string;
+  walletAddress: string;
+  timestamp: number;
+  isAnonymous?: boolean;
+}
+
 export default function AdminPage() {
-  const { data: session } = useSession();
-  const [accessRequests, setAccessRequests] = useState<AccessRequest[]>([]);
+  const { data: session, status } = useSession();
+  const router = useRouter();
+  const [requests, setRequests] = useState<AccessRequest[]>([]);
   const [whitelistedUsers, setWhitelistedUsers] = useState<WhitelistedUser[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [airdropHistory, setAirdropHistory] = useState<AirdropRecord[]>([]);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (status === 'unauthenticated') {
+      router.push('/');
+    }
+  }, [status, router]);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [requestsRes, whitelistRes] = await Promise.all([
+        const [requestsRes, whitelistedRes, historyRes] = await Promise.all([
           fetch('/api/admin/access-requests'),
-          fetch('/api/admin/whitelisted-users')
+          fetch('/api/admin/whitelisted-users'),
+          fetch('/api/admin/airdrop-history')
         ]);
 
-        if (!requestsRes.ok || !whitelistRes.ok) {
+        if (!requestsRes.ok || !whitelistedRes.ok || !historyRes.ok) {
           throw new Error('Failed to fetch data');
         }
 
-        const [requests, whitelist] = await Promise.all([
+        const [requestsData, whitelistedData, historyData] = await Promise.all([
           requestsRes.json(),
-          whitelistRes.json()
+          whitelistedRes.json(),
+          historyRes.json()
         ]);
 
-        setAccessRequests(requests);
-        setWhitelistedUsers(whitelist);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'An error occurred');
+        setRequests(requestsData);
+        setWhitelistedUsers(whitelistedData);
+        setAirdropHistory(historyData);
+      } catch (error) {
+        console.error('Error fetching data:', error);
+        setError(error instanceof Error ? error.message : 'An error occurred');
       } finally {
-        setIsLoading(false);
+        setLoading(false);
       }
     };
 
@@ -52,55 +72,42 @@ export default function AdminPage() {
 
   const handleApprove = async (username: string) => {
     try {
-      const response = await fetch('/api/admin/approve-request', {
+      const res = await fetch('/api/admin/approve-request', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username })
       });
 
-      if (!response.ok) throw new Error('Failed to approve request');
+      if (!res.ok) throw new Error('Failed to approve request');
 
       // Update local state
-      setAccessRequests(prev => prev.filter(req => req.username !== username));
-      const newWhitelistedUser = {
-        username,
-        approvedAt: Date.now()
-      };
-      setWhitelistedUsers(prev => [...prev, newWhitelistedUser]);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to approve request');
+      setRequests(prev => prev.filter(req => req.username !== username));
+      setWhitelistedUsers(prev => [...prev, { username, approvedAt: Date.now() }]);
+    } catch (error) {
+      console.error('Error approving request:', error);
+      setError(error instanceof Error ? error.message : 'Failed to approve request');
     }
   };
 
   const handleReject = async (username: string) => {
     try {
-      const response = await fetch('/api/admin/reject-request', {
+      const res = await fetch('/api/admin/reject-request', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username })
       });
 
-      if (!response.ok) throw new Error('Failed to reject request');
+      if (!res.ok) throw new Error('Failed to reject request');
 
       // Update local state
-      setAccessRequests(prev => prev.filter(req => req.username !== username));
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to reject request');
+      setRequests(prev => prev.filter(req => req.username !== username));
+    } catch (error) {
+      console.error('Error rejecting request:', error);
+      setError(error instanceof Error ? error.message : 'Failed to reject request');
     }
   };
 
-  if (!session?.user) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold mb-4">Access Denied</h1>
-          <p>Please sign in to access the admin panel.</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (isLoading) {
+  if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
@@ -124,7 +131,7 @@ export default function AdminPage() {
   return (
     <div className="min-h-screen p-8">
       <div className="max-w-6xl mx-auto">
-        <h1 className="text-3xl font-bold mb-8">Admin Panel</h1>
+        <h1 className="text-3xl font-bold mb-8">Admin Dashboard</h1>
 
         {/* Access Requests Section */}
         <div className="mb-12">
@@ -139,7 +146,7 @@ export default function AdminPage() {
                 </tr>
               </thead>
               <tbody className="bg-white dark:bg-zinc-800 divide-y divide-gray-200 dark:divide-gray-700">
-                {accessRequests.map((request) => (
+                {requests.map((request) => (
                   <tr key={request.username}>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <a 
@@ -201,6 +208,56 @@ export default function AdminPage() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                       {formatDistanceToNow(user.approvedAt, { addSuffix: true })}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Airdrop History Section */}
+        <div>
+          <h2 className="text-2xl font-semibold mb-4">Complete Airdrop History</h2>
+          <div className="bg-white dark:bg-zinc-800 rounded-lg shadow overflow-hidden">
+            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+              <thead className="bg-gray-50 dark:bg-zinc-700">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Username</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Wallet Address</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Timestamp</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Status</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white dark:bg-zinc-800 divide-y divide-gray-200 dark:divide-gray-700">
+                {airdropHistory.map((record) => (
+                  <tr key={`${record.username}-${record.timestamp}`}>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {record.isAnonymous ? (
+                        <span className="text-gray-500">Anonymous</span>
+                      ) : (
+                        <a 
+                          href={`https://github.com/${record.username}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-600 dark:text-blue-400 hover:underline"
+                        >
+                          {record.username}
+                        </a>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap font-mono">
+                      {record.walletAddress}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {formatDistanceToNow(record.timestamp, { addSuffix: true })}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {record.isAnonymous ? (
+                        <span className="text-gray-500">Anonymous</span>
+                      ) : (
+                        <span className="text-green-500">Public</span>
+                      )}
                     </td>
                   </tr>
                 ))}
