@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { Connection, PublicKey, clusterApiUrl, LAMPORTS_PER_SOL } from '@solana/web3.js';
 import { signIn, useSession } from "next-auth/react";
-import airdrop from "@/app/airdrop";
+import airdrop, { requestAccess } from "@/app/airdrop";
 
 interface AirdropWithGithubProps {
   faucetAddress?: string;
@@ -17,6 +17,8 @@ export function AirdropWithGithub({ faucetAddress, airdropAmount }: AirdropWithG
   const [faucetBalance, setFaucetBalance] = useState('');
   const [faucetEmpty, setFaucetEmpty] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isAnonymous, setIsAnonymous] = useState(false);
+  const [showAccessRequest, setShowAccessRequest] = useState(false);
 
   const handleAirdrop = async () => {
     if (!session) {
@@ -34,12 +36,39 @@ export function AirdropWithGithub({ faucetAddress, airdropAmount }: AirdropWithG
 
     const formData = new FormData();
     formData.append('walletAddress', walletAddress);
+    formData.append('isAnonymous', isAnonymous.toString());
 
     try {
       const result = await airdrop(formData);
-      setAirdropResult(result);
+      if (result === 'NO_REPO_FOUND') {
+        setShowAccessRequest(true);
+        setAirdropResult('No eligible repository found in Solana ecosystem');
+      } else {
+        setAirdropResult(result);
+      }
     } catch (error) {
       console.error('Error during airdrop:', error);
+      setAirdropResult('An error occurred. Please try again.');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleRequestAccess = async () => {
+    if (!session) {
+      signIn("github");
+      return;
+    }
+
+    setIsProcessing(true);
+    setAirdropResult('Submitting access request...');
+
+    try {
+      const result = await requestAccess(new FormData());
+      setAirdropResult(result);
+      setShowAccessRequest(false);
+    } catch (error) {
+      console.error('Error requesting access:', error);
       setAirdropResult('An error occurred. Please try again.');
     } finally {
       setIsProcessing(false);
@@ -97,6 +126,19 @@ export function AirdropWithGithub({ faucetAddress, airdropAmount }: AirdropWithG
         </div>
       </div>
       
+      <div className="flex items-center space-x-2">
+        <input
+          type="checkbox"
+          id="isAnonymous"
+          checked={isAnonymous}
+          onChange={(e) => setIsAnonymous(e.target.checked)}
+          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+        />
+        <label htmlFor="isAnonymous" className="text-sm text-gray-600 dark:text-gray-400">
+          Make airdrop anonymous
+        </label>
+      </div>
+      
       <button
         onClick={handleAirdrop}
         className={`w-full px-6 py-3 ${
@@ -121,6 +163,15 @@ export function AirdropWithGithub({ faucetAddress, airdropAmount }: AirdropWithG
               : 'bg-red-100 text-red-800 dark:bg-red-800/30 dark:text-red-300'
         }`}>
           {airdropResult}
+          {showAccessRequest && (
+            <button
+              onClick={handleRequestAccess}
+              className="mt-2 w-full px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 focus:ring-4 focus:ring-purple-300 transition-all duration-200"
+              disabled={isProcessing}
+            >
+              Request Access
+            </button>
+          )}
         </div>
       )}
 

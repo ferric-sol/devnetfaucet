@@ -27,6 +27,7 @@ export interface AirdropRecord {
   username: string;
   walletAddress: string;
   timestamp: number;
+  isAnonymous?: boolean;
 }
 
 // Helper function to safely use KV or fallback to in-memory storage
@@ -240,7 +241,7 @@ export default async function airdrop(formData: FormData) {
     console.log('Using GitHub username:', githubUsername);
     const hasRepo = await checkUserHasRepo(githubUsername);
     if (!hasRepo) {
-      return 'No eligible repository found in Solana ecosystem';
+      return 'NO_REPO_FOUND';
     }
 
     // Check if this GitHub user has received an airdrop recently
@@ -257,6 +258,8 @@ export default async function airdrop(formData: FormData) {
     }
 
     const walletAddress = formData.get('walletAddress');
+    const isAnonymous = formData.get('isAnonymous') === 'true';
+    
     try { 
       if (!walletAddress || walletAddress === null) {
         throw new Error('Wallet address is required');
@@ -305,9 +308,10 @@ export default async function airdrop(formData: FormData) {
       
       // Store airdrop record
       await storeAirdropRecord({
-        username: githubUsername,
+        username: isAnonymous ? 'anon' : githubUsername,
         walletAddress: walletAddressString,
-        timestamp: now
+        timestamp: now,
+        isAnonymous
       });
 
       return 'Airdrop successful';
@@ -315,4 +319,71 @@ export default async function airdrop(formData: FormData) {
       console.log('error airdropping: ', error);
       return 'Airdrop failed';
     }
+}
+
+// Function to store access request
+async function storeAccessRequest(username: string): Promise<void> {
+  try {
+    const now = Date.now();
+    const request = {
+      username,
+      timestamp: now
+    };
+    
+    // Get existing requests
+    let requests = [];
+    try {
+      const existingRequests = await kv.get('access_requests') as any[] | null;
+      if (existingRequests) {
+        requests = existingRequests;
+      }
+    } catch (error) {
+      console.log('Error getting access requests:', error);
+    }
+
+    // Add new request
+    requests.push(request);
+    
+    // Keep only the last 100 requests
+    if (requests.length > 100) {
+      requests = requests.slice(-100);
+    }
+
+    // Store updated requests
+    try {
+      await kv.set('access_requests', requests);
+    } catch (error) {
+      console.log('Error storing access requests:', error);
+    }
+  } catch (error) {
+    console.error('Failed to store access request:', error);
+  }
+}
+
+// Function to request access
+export async function requestAccess(formData: FormData) {
+  noStore();
+
+  const session = await getServerSession(authOptions);
+  const token = await getToken({ 
+    req: { cookies: cookies() } as any,
+    secret: process.env.NEXTAUTH_SECRET
+  });
+  
+  if (!session || !session.user) {
+    return 'Please sign in with GitHub first';
+  }
+
+  const githubUserId = token?.sub;
+  if (!githubUserId) {
+    return 'Unable to verify GitHub account';
+  }
+  
+  const githubUsername = await fetchGitHubUsername(githubUserId);
+  if (!githubUsername) {
+    return 'Unable to verify GitHub account';
+  }
+
+  await storeAccessRequest(githubUsername);
+  return 'Access request submitted successfully';
 }
