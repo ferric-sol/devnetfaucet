@@ -233,17 +233,18 @@ export default function AdminPage() {
                 {airdropHistory.map((record) => (
                   <tr key={`${record.username}-${record.timestamp}`}>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      {record.isAnonymous ? (
-                        <span className="text-gray-500">Anonymous</span>
-                      ) : (
-                        <a 
-                          href={`https://github.com/${record.username}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-blue-600 dark:text-blue-400 hover:underline"
-                        >
-                          {record.username}
-                        </a>
+                      <a 
+                        href={`https://github.com/${record.username}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 dark:text-blue-400 hover:underline"
+                      >
+                        {record.username}
+                      </a>
+                      {record.isAnonymous && (
+                        <span className="ml-2 text-xs text-gray-500 dark:text-gray-400">
+                          (Anonymous)
+                        </span>
                       )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap font-mono">

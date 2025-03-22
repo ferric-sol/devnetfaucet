@@ -313,7 +313,7 @@ export default async function airdrop(formData: FormData) {
       
       // Store airdrop record
       await storeAirdropRecord({
-        username: isAnonymous ? 'anon' : githubUsername,
+        username: githubUsername,
         walletAddress: walletAddressString,
         timestamp: now,
         isAnonymous
@@ -387,6 +387,18 @@ export async function requestAccess(formData: FormData) {
   const githubUsername = await fetchGitHubUsername(githubUserId);
   if (!githubUsername) {
     return 'Unable to verify GitHub account';
+  }
+
+  // Check if user is already whitelisted
+  const whitelistedUsers = await kv.get('whitelisted_users') as any[] || [];
+  if (whitelistedUsers.some(user => user.username === githubUsername)) {
+    return 'You are already whitelisted';
+  }
+
+  // Check if user already has a pending request
+  const requests = await kv.get('access_requests') as any[] || [];
+  if (requests.some(req => req.username === githubUsername)) {
+    return 'You already have a pending request';
   }
 
   await storeAccessRequest(githubUsername);
