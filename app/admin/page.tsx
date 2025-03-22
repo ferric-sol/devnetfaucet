@@ -30,6 +30,11 @@ export default function AdminPage() {
   const [airdropHistory, setAirdropHistory] = useState<AirdropRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [dedupeStatus, setDedupeStatus] = useState<{
+    originalCount: number;
+    dedupedCount: number;
+    removedCount: number;
+  } | null>(null);
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -107,6 +112,28 @@ export default function AdminPage() {
     }
   };
 
+  const handleDedupe = async () => {
+    try {
+      const res = await fetch('/api/admin/dedupe-requests', {
+        method: 'POST'
+      });
+
+      if (!res.ok) throw new Error('Failed to dedupe requests');
+
+      const data = await res.json();
+      setDedupeStatus(data);
+      
+      // Refresh the requests list
+      const requestsRes = await fetch('/api/admin/access-requests');
+      if (requestsRes.ok) {
+        const requestsData = await requestsRes.json();
+        setRequests(requestsData);
+      }
+    } catch (error) {
+      console.error('Error deduping requests:', error);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -135,7 +162,25 @@ export default function AdminPage() {
 
         {/* Access Requests Section */}
         <div className="mb-12">
-          <h2 className="text-2xl font-semibold mb-4">Access Requests</h2>
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-semibold">Access Requests</h2>
+            <button
+              onClick={handleDedupe}
+              className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+            >
+              Deduplicate Requests
+            </button>
+          </div>
+          {dedupeStatus && (
+            <div className="mb-4 p-4 bg-green-100 text-green-700 rounded">
+              Deduplication complete:
+              <ul className="list-disc list-inside">
+                <li>Original requests: {dedupeStatus.originalCount}</li>
+                <li>After deduplication: {dedupeStatus.dedupedCount}</li>
+                <li>Removed duplicates: {dedupeStatus.removedCount}</li>
+              </ul>
+            </div>
+          )}
           <div className="bg-white dark:bg-zinc-800 rounded-lg shadow overflow-hidden">
             <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
               <thead className="bg-gray-50 dark:bg-zinc-700">
