@@ -14,12 +14,28 @@ export async function POST(request: Request) {
   try {
     const { username } = await request.json();
 
-    // Get current requests
-    const requests = await kv.get('access_requests') as any[];
+    // Get current requests and rejected users
+    const [requests, rejectedUsers] = await Promise.all([
+      kv.get('access_requests') as Promise<any[]>,
+      kv.get('rejected_users') as Promise<any[]>
+    ]);
 
     // Remove the request
     const updatedRequests = requests.filter(req => req.username !== username);
-    await kv.set('access_requests', updatedRequests);
+
+    // Add to rejected users list
+    const now = Date.now();
+    const newRejectedUser = {
+      username,
+      rejectedAt: now
+    };
+    const updatedRejectedUsers = [...(rejectedUsers || []), newRejectedUser];
+
+    // Store updated data
+    await Promise.all([
+      kv.set('access_requests', updatedRequests),
+      kv.set('rejected_users', updatedRejectedUsers)
+    ]);
 
     return NextResponse.json({ success: true });
   } catch (error) {

@@ -327,11 +327,12 @@ export default async function airdrop(formData: FormData) {
 }
 
 // Function to store access request
-async function storeAccessRequest(username: string): Promise<void> {
+async function storeAccessRequest(username: string, reason: string): Promise<void> {
   try {
     const now = Date.now();
     const request = {
       username,
+      reason,
       timestamp: now
     };
     
@@ -389,6 +390,12 @@ export async function requestAccess(formData: FormData) {
     return 'Unable to verify GitHub account';
   }
 
+  // Get the reason from form data
+  const reason = formData.get('reason') as string;
+  if (!reason || reason.trim() === '') {
+    return 'Please provide a reason for requesting access';
+  }
+
   // Check if user is already whitelisted
   const whitelistedUsers = await kv.get('whitelisted_users') as any[] || [];
   if (whitelistedUsers.some(user => user.username === githubUsername)) {
@@ -401,6 +408,6 @@ export async function requestAccess(formData: FormData) {
     return 'You already have a pending request';
   }
 
-  await storeAccessRequest(githubUsername);
+  await storeAccessRequest(githubUsername, reason.trim());
   return 'Access request submitted successfully';
 }
