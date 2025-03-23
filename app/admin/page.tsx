@@ -164,6 +164,25 @@ export default function AdminPage() {
     }
   };
 
+  const handleApproveRejected = async (username: string) => {
+    try {
+      const res = await fetch('/api/admin/approve-rejected', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username })
+      });
+
+      if (!res.ok) throw new Error('Failed to approve rejected user');
+
+      // Update local state
+      setRejectedUsers(prev => prev.filter(user => user.username !== username));
+      setWhitelistedUsers(prev => [...prev, { username, approvedAt: Date.now() }]);
+    } catch (error) {
+      console.error('Error approving rejected user:', error);
+      setError(error instanceof Error ? error.message : 'Failed to approve rejected user');
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -277,7 +296,7 @@ export default function AdminPage() {
         </div>
 
         {/* Rejected Users Section */}
-        <div className="mb-12">
+        <div>
           <h2 className="text-2xl font-semibold mb-4">Rejected Users</h2>
           <div className="bg-white dark:bg-zinc-800 rounded-lg shadow overflow-hidden">
             <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
@@ -285,6 +304,7 @@ export default function AdminPage() {
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Username</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Rejected</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
               <tbody className="bg-white dark:bg-zinc-800 divide-y divide-gray-200 dark:divide-gray-700">
@@ -302,6 +322,14 @@ export default function AdminPage() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                       {formatDistanceToNow(user.rejectedAt, { addSuffix: true })}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                      <button
+                        onClick={() => handleApproveRejected(user.username)}
+                        className="text-green-600 dark:text-green-400 hover:text-green-900 dark:hover:text-green-300"
+                      >
+                        Approve
+                      </button>
                     </td>
                   </tr>
                 ))}
