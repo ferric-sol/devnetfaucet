@@ -19,6 +19,7 @@ export function AirdropWithGithub({ faucetAddress, airdropAmount }: AirdropWithG
   const [isProcessing, setIsProcessing] = useState(false);
   const [isAnonymous, setIsAnonymous] = useState(false);
   const [showAccessRequest, setShowAccessRequest] = useState(false);
+  const [accessReason, setAccessReason] = useState('');
 
   const handleAirdrop = async () => {
     if (!session) {
@@ -60,13 +61,21 @@ export function AirdropWithGithub({ faucetAddress, airdropAmount }: AirdropWithG
       return;
     }
 
+    if (!accessReason.trim()) {
+      setAirdropResult('Please provide a reason for requesting access');
+      return;
+    }
+
     setIsProcessing(true);
     setAirdropResult('Submitting access request...');
 
     try {
-      const result = await requestAccess(new FormData());
+      const formData = new FormData();
+      formData.append('reason', accessReason.trim());
+      const result = await requestAccess(formData);
       setAirdropResult(result);
       setShowAccessRequest(false);
+      setAccessReason('');
     } catch (error) {
       console.error('Error requesting access:', error);
       setAirdropResult('An error occurred. Please try again.');
@@ -164,13 +173,29 @@ export function AirdropWithGithub({ faucetAddress, airdropAmount }: AirdropWithG
         }`}>
           {airdropResult}
           {showAccessRequest && (
-            <button
-              onClick={handleRequestAccess}
-              className="mt-2 w-full px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 focus:ring-4 focus:ring-purple-300 transition-all duration-200"
-              disabled={isProcessing}
-            >
-              Request Access
-            </button>
+            <div className="mt-4 space-y-4">
+              <div>
+                <label htmlFor="accessReason" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Why do you need devnet SOL?
+                </label>
+                <textarea
+                  id="accessReason"
+                  value={accessReason}
+                  onChange={(e) => setAccessReason(e.target.value)}
+                  placeholder="I need devnet sol for..."
+                  className="w-full px-4 py-2 border-2 border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-zinc-700 dark:border-gray-600 dark:text-white"
+                  rows={3}
+                  required
+                />
+              </div>
+              <button
+                onClick={handleRequestAccess}
+                className="w-full px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 focus:ring-4 focus:ring-purple-300 transition-all duration-200"
+                disabled={isProcessing || !accessReason.trim()}
+              >
+                {isProcessing ? 'Submitting...' : 'Request Access'}
+              </button>
+            </div>
           )}
         </div>
       )}
