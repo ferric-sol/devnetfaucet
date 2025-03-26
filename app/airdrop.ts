@@ -283,9 +283,17 @@ export default async function airdrop(formData: FormData) {
       const secretKey = process.env.SENDER_SECRET_KEY;
       if(!secretKey) return 'Airdrop failed';
 
-      // Changed to 100 SOL as requested
-      const airdropAmount = process.env.NEXT_PUBLIC_AIRDROP_AMOUNT;
-      const airdropAmountLamports = airdropAmount ? Number(airdropAmount) * LAMPORTS_PER_SOL : 0;
+      // Determine airdrop amount based on user status
+      let airdropAmount: number;
+      if (isWhitelisted && !hasRepo) {
+        // Use whitelist amount for whitelisted users without repos
+        airdropAmount = Number(process.env.NEXT_PUBLIC_WHITELIST_AIRDROP_AMOUNT || 1);
+      } else {
+        // Use regular amount for users with repos or whitelisted users with repos
+        airdropAmount = Number(process.env.NEXT_PUBLIC_AIRDROP_AMOUNT || 20);
+      }
+
+      const airdropAmountLamports = airdropAmount * LAMPORTS_PER_SOL;
 
       const secretKeyUint8Array = new Uint8Array(
         secretKey.split(',').map((num) => parseInt(num, 10))
