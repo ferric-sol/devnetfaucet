@@ -4,6 +4,7 @@ import "./globals.css";
 import { SessionProvider } from "./components/SessionProvider";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "./lib/auth";
+import { Analytics } from "@vercel/analytics/react"
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -24,6 +25,7 @@ export default async function RootLayout({
       <body className={inter.className}>
         <SessionProvider session={session}>
           {children}
+          <Analytics />
         </SessionProvider>
       </body>
     </html>
