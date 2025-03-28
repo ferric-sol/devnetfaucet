@@ -185,37 +185,34 @@ export default function AdminPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold mb-4">Loading...</h1>
-        </div>
+      <div className="min-h-screen p-4 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold mb-4 text-red-600">Error</h1>
-          <p>{error}</p>
+      <div className="min-h-screen p-4 flex items-center justify-center">
+        <div className="bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300 p-4 rounded-lg">
+          {error}
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen p-8">
-      <div className="max-w-6xl mx-auto">
-        <h1 className="text-3xl font-bold mb-8">Admin Dashboard</h1>
+    <div className="min-h-screen p-4 md:p-8">
+      <div className="max-w-6xl mx-auto space-y-8">
+        <h1 className="text-2xl md:text-3xl font-bold">Admin Dashboard</h1>
 
         {/* Access Requests Section */}
-        <div className="mb-12">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-semibold">Access Requests</h2>
+        <div>
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4">
+            <h2 className="text-xl md:text-2xl font-semibold">Access Requests</h2>
             <button
               onClick={handleDedupe}
-              className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+              className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 w-full md:w-auto"
             >
               Deduplicate Requests
             </button>
@@ -231,204 +228,210 @@ export default function AdminPage() {
             </div>
           )}
           <div className="bg-white dark:bg-zinc-800 rounded-lg shadow overflow-hidden">
-            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-              <thead className="bg-gray-50 dark:bg-zinc-700">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Username</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Reason</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Requested</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Previous Rejection</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white dark:bg-zinc-800 divide-y divide-gray-200 dark:divide-gray-700">
-                {requests.map((request) => {
-                  const previousRejection = rejectedUsers.find(
-                    user => user.username === request.username
-                  );
-                  return (
-                    <tr key={request.username}>
-                      <td className="px-6 py-4 whitespace-nowrap">
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                <thead className="bg-gray-50 dark:bg-zinc-700">
+                  <tr>
+                    <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Username</th>
+                    <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider hidden md:table-cell">Reason</th>
+                    <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Requested</th>
+                    <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider hidden md:table-cell">Previous Rejection</th>
+                    <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white dark:bg-zinc-800 divide-y divide-gray-200 dark:divide-gray-700">
+                  {requests.map((request) => {
+                    const previousRejection = rejectedUsers.find(
+                      user => user.username === request.username
+                    );
+                    return (
+                      <tr key={request.username}>
+                        <td className="px-4 md:px-6 py-4 whitespace-nowrap">
+                          <a 
+                            href={`https://github.com/${request.username}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-600 dark:text-blue-400 hover:underline"
+                          >
+                            {request.username}
+                          </a>
+                        </td>
+                        <td className="px-4 md:px-6 py-4 text-sm text-gray-500 dark:text-gray-400 hidden md:table-cell">
+                          {request.reason}
+                        </td>
+                        <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                          {formatDistanceToNow(request.timestamp, { addSuffix: true })}
+                        </td>
+                        <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 hidden md:table-cell">
+                          {previousRejection ? (
+                            <span className="text-red-500">
+                              Rejected {formatDistanceToNow(previousRejection.rejectedAt, { addSuffix: true })}
+                            </span>
+                          ) : (
+                            <span className="text-gray-400">No previous rejections</span>
+                          )}
+                        </td>
+                        <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
+                          <button
+                            onClick={() => handleApprove(request.username)}
+                            className="text-green-600 dark:text-green-400 hover:text-green-900 dark:hover:text-green-300"
+                          >
+                            Approve
+                          </button>
+                          <button
+                            onClick={() => handleReject(request.username)}
+                            className="text-red-600 dark:text-red-400 hover:text-red-900 dark:hover:text-red-300"
+                          >
+                            Reject
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        {/* Whitelisted Users Section */}
+        <div>
+          <h2 className="text-xl md:text-2xl font-semibold mb-4">Whitelisted Users</h2>
+          <div className="bg-white dark:bg-zinc-800 rounded-lg shadow overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                <thead className="bg-gray-50 dark:bg-zinc-700">
+                  <tr>
+                    <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Username</th>
+                    <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Approved</th>
+                    <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white dark:bg-zinc-800 divide-y divide-gray-200 dark:divide-gray-700">
+                  {whitelistedUsers.map((user) => (
+                    <tr key={user.username}>
+                      <td className="px-4 md:px-6 py-4 whitespace-nowrap">
                         <a 
-                          href={`https://github.com/${request.username}`}
+                          href={`https://github.com/${user.username}`}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="text-blue-600 dark:text-blue-400 hover:underline"
                         >
-                          {request.username}
+                          {user.username}
                         </a>
                       </td>
-                      <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400 max-w-md">
-                        {request.reason}
+                      <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                        {formatDistanceToNow(user.approvedAt, { addSuffix: true })}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                        {formatDistanceToNow(request.timestamp, { addSuffix: true })}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                        {previousRejection ? (
-                          <span className="text-red-500">
-                            Rejected {formatDistanceToNow(previousRejection.rejectedAt, { addSuffix: true })}
-                          </span>
-                        ) : (
-                          <span className="text-gray-400">No previous rejections</span>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
+                      <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm font-medium">
                         <button
-                          onClick={() => handleApprove(request.username)}
-                          className="text-green-600 dark:text-green-400 hover:text-green-900 dark:hover:text-green-300"
-                        >
-                          Approve
-                        </button>
-                        <button
-                          onClick={() => handleReject(request.username)}
+                          onClick={() => handleRejectWhitelisted(user.username)}
                           className="text-red-600 dark:text-red-400 hover:text-red-900 dark:hover:text-red-300"
                         >
                           Reject
                         </button>
                       </td>
                     </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
 
         {/* Rejected Users Section */}
         <div>
-          <h2 className="text-2xl font-semibold mb-4">Rejected Users</h2>
+          <h2 className="text-xl md:text-2xl font-semibold mb-4">Rejected Users</h2>
           <div className="bg-white dark:bg-zinc-800 rounded-lg shadow overflow-hidden">
-            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-              <thead className="bg-gray-50 dark:bg-zinc-700">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Username</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Rejected</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white dark:bg-zinc-800 divide-y divide-gray-200 dark:divide-gray-700">
-                {rejectedUsers.map((user) => (
-                  <tr key={user.username}>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <a 
-                        href={`https://github.com/${user.username}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-blue-600 dark:text-blue-400 hover:underline"
-                      >
-                        {user.username}
-                      </a>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                      {formatDistanceToNow(user.rejectedAt, { addSuffix: true })}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      <button
-                        onClick={() => handleApproveRejected(user.username)}
-                        className="text-green-600 dark:text-green-400 hover:text-green-900 dark:hover:text-green-300"
-                      >
-                        Approve
-                      </button>
-                    </td>
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                <thead className="bg-gray-50 dark:bg-zinc-700">
+                  <tr>
+                    <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Username</th>
+                    <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Rejected</th>
+                    <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="bg-white dark:bg-zinc-800 divide-y divide-gray-200 dark:divide-gray-700">
+                  {rejectedUsers.map((user) => (
+                    <tr key={user.username}>
+                      <td className="px-4 md:px-6 py-4 whitespace-nowrap">
+                        <a 
+                          href={`https://github.com/${user.username}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-600 dark:text-blue-400 hover:underline"
+                        >
+                          {user.username}
+                        </a>
+                      </td>
+                      <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                        {formatDistanceToNow(user.rejectedAt, { addSuffix: true })}
+                      </td>
+                      <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm font-medium">
+                        <button
+                          onClick={() => handleApproveRejected(user.username)}
+                          className="text-green-600 dark:text-green-400 hover:text-green-900 dark:hover:text-green-300"
+                        >
+                          Approve
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
 
-        {/* Whitelisted Users Section */}
+        {/* Recent Airdrops Section */}
         <div>
-          <h2 className="text-2xl font-semibold mb-4">Whitelisted Users</h2>
+          <h2 className="text-xl md:text-2xl font-semibold mb-4">Recent Airdrops</h2>
           <div className="bg-white dark:bg-zinc-800 rounded-lg shadow overflow-hidden">
-            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-              <thead className="bg-gray-50 dark:bg-zinc-700">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Username</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Approved</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white dark:bg-zinc-800 divide-y divide-gray-200 dark:divide-gray-700">
-                {whitelistedUsers.map((user) => (
-                  <tr key={user.username}>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <a 
-                        href={`https://github.com/${user.username}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-blue-600 dark:text-blue-400 hover:underline"
-                      >
-                        {user.username}
-                      </a>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                      {formatDistanceToNow(user.approvedAt, { addSuffix: true })}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      <button
-                        onClick={() => handleRejectWhitelisted(user.username)}
-                        className="text-red-600 dark:text-red-400 hover:text-red-900 dark:hover:text-red-300"
-                      >
-                        Reject
-                      </button>
-                    </td>
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                <thead className="bg-gray-50 dark:bg-zinc-700">
+                  <tr>
+                    <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Username</th>
+                    <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider hidden md:table-cell">Wallet</th>
+                    <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Time</th>
+                    <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Anonymous</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        {/* Airdrop History Section */}
-        <div>
-          <h2 className="text-2xl font-semibold mb-4">Complete Airdrop History</h2>
-          <div className="bg-white dark:bg-zinc-800 rounded-lg shadow overflow-hidden">
-            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-              <thead className="bg-gray-50 dark:bg-zinc-700">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Username</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Wallet Address</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Timestamp</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Status</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white dark:bg-zinc-800 divide-y divide-gray-200 dark:divide-gray-700">
-                {airdropHistory.map((record) => (
-                  <tr key={`${record.username}-${record.timestamp}`}>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <a 
-                        href={`https://github.com/${record.username}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-blue-600 dark:text-blue-400 hover:underline"
-                      >
-                        {record.username}
-                      </a>
-                      {record.isAnonymous && (
-                        <span className="ml-2 text-xs text-gray-500 dark:text-gray-400">
-                          (Anonymous)
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap font-mono">
-                      {record.walletAddress}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {formatDistanceToNow(record.timestamp, { addSuffix: true })}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {record.isAnonymous ? (
-                        <span className="text-gray-500">Anonymous</span>
-                      ) : (
-                        <span className="text-green-500">Public</span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="bg-white dark:bg-zinc-800 divide-y divide-gray-200 dark:divide-gray-700">
+                  {airdropHistory.map((record) => (
+                    <tr key={`${record.username}-${record.timestamp}`}>
+                      <td className="px-4 md:px-6 py-4 whitespace-nowrap">
+                        <a 
+                          href={`https://github.com/${record.username}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-600 dark:text-blue-400 hover:underline"
+                        >
+                          {record.username}
+                        </a>
+                      </td>
+                      <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 hidden md:table-cell">
+                        <a 
+                          href={`https://solscan.io/account/${record.walletAddress}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="font-mono hover:underline"
+                        >
+                          {record.walletAddress.slice(0, 8)}...{record.walletAddress.slice(-8)}
+                        </a>
+                      </td>
+                      <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                        {formatDistanceToNow(record.timestamp, { addSuffix: true })}
+                      </td>
+                      <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                        {record.isAnonymous ? 'Yes' : 'No'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       </div>
