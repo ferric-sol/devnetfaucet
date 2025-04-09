@@ -270,7 +270,8 @@ export default async function airdrop(formData: FormData) {
         throw new Error('Wallet address is required');
       }
 
-      const connection = new Connection(clusterApiUrl('devnet'), 'confirmed');
+      // Use our new RPC endpoint instead of the default one
+      const connection = new Connection('http://rpc.devnetfaucet.org:8899/', 'confirmed');
       const walletAddressString = walletAddress?.toString().trim();
 
       // Validate wallet address format
@@ -329,8 +330,65 @@ export default async function airdrop(formData: FormData) {
 
       return 'Airdrop successful';
     } catch(error) {
-      console.log('error airdropping: ', error);
-      return 'Airdrop failed';
+      console.log('error airdropping with custom RPC: ', error);
+      
+      // Try again with default RPC
+      try {
+        if (!walletAddress || walletAddress === null) {
+          throw new Error('Wallet address is required');
+        }
+
+        const connection = new Connection(clusterApiUrl('devnet'), 'confirmed');
+        const walletAddressString = walletAddress?.toString().trim();
+        
+        // Skip validation, already done above
+        const secretKey = process.env.SENDER_SECRET_KEY;
+        if(!secretKey) return 'Airdrop failed';
+
+        // Determine airdrop amount based on user status
+        let airdropAmount: number;
+        if (isWhitelisted && !hasRepo) {
+          airdropAmount = Number(process.env.NEXT_PUBLIC_WHITELIST_AIRDROP_AMOUNT || 1);
+        } else {
+          airdropAmount = Number(process.env.NEXT_PUBLIC_AIRDROP_AMOUNT || 20);
+        }
+
+        const airdropAmountLamports = airdropAmount * LAMPORTS_PER_SOL;
+        const secretKeyUint8Array = new Uint8Array(
+          secretKey.split(',').map((num) => parseInt(num, 10))
+        );
+        const senderKeypair = Keypair.fromSecretKey(secretKeyUint8Array);
+        const transaction = new Transaction().add(
+          SystemProgram.transfer({
+            fromPubkey: senderKeypair.publicKey,
+            toPubkey: new PublicKey(walletAddress as string),
+            lamports: airdropAmountLamports
+          })
+        );
+
+        const signature = await sendAndConfirmTransaction(
+          connection,
+          transaction,
+          [senderKeypair]
+        );
+
+        // Store the timestamp using the GitHub username as the key
+        const now = Date.now();
+        await safeKvSet(`user:${githubUsername}`, now);
+        
+        // Store airdrop record
+        await storeAirdropRecord({
+          username: githubUsername,
+          walletAddress: walletAddressString,
+          timestamp: now,
+          isAnonymous
+        });
+
+        return 'Airdrop successful';
+      } catch(fallbackError) {
+        console.log('error airdropping with fallback RPC: ', fallbackError);
+        return 'Airdrop failed';
+      }
     }
 }
 

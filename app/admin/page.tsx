@@ -245,47 +245,79 @@ export default function AdminPage() {
                       user => user.username === request.username
                     );
                     return (
-                      <tr key={request.username}>
-                        <td className="px-4 md:px-6 py-4 whitespace-nowrap">
-                          <a 
-                            href={`https://github.com/${request.username}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-blue-600 dark:text-blue-400 hover:underline"
-                          >
-                            {request.username}
-                          </a>
-                        </td>
-                        <td className="px-4 md:px-6 py-4 text-sm text-gray-500 dark:text-gray-400 hidden md:table-cell">
-                          {request.reason}
-                        </td>
-                        <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                          {formatDistanceToNow(request.timestamp, { addSuffix: true })}
-                        </td>
-                        <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 hidden md:table-cell">
-                          {previousRejection ? (
-                            <span className="text-red-500">
-                              Rejected {formatDistanceToNow(previousRejection.rejectedAt, { addSuffix: true })}
-                            </span>
-                          ) : (
-                            <span className="text-gray-400">No previous rejections</span>
-                          )}
-                        </td>
-                        <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
-                          <button
-                            onClick={() => handleApprove(request.username)}
-                            className="text-green-600 dark:text-green-400 hover:text-green-900 dark:hover:text-green-300"
-                          >
-                            Approve
-                          </button>
-                          <button
-                            onClick={() => handleReject(request.username)}
-                            className="text-red-600 dark:text-red-400 hover:text-red-900 dark:hover:text-red-300"
-                          >
-                            Reject
-                          </button>
-                        </td>
-                      </tr>
+                      <>
+                        <tr key={`${request.username}-main`} className="group">
+                          <td className="px-4 md:px-6 py-4 whitespace-nowrap">
+                            <a 
+                              href={`https://github.com/${request.username}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-blue-600 dark:text-blue-400 hover:underline"
+                            >
+                              {request.username}
+                            </a>
+                          </td>
+                          <td className="px-4 md:px-6 py-4 text-sm text-gray-500 dark:text-gray-400 hidden md:table-cell">
+                            {request.reason}
+                          </td>
+                          <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                            {formatDistanceToNow(request.timestamp, { addSuffix: true })}
+                          </td>
+                          <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 hidden md:table-cell">
+                            {previousRejection ? (
+                              <span className="text-red-500">
+                                Rejected {formatDistanceToNow(previousRejection.rejectedAt, { addSuffix: true })}
+                              </span>
+                            ) : (
+                              <span className="text-gray-400">No previous rejections</span>
+                            )}
+                          </td>
+                          <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm font-medium">
+                            <div className="flex flex-col md:flex-row md:space-x-2 space-y-2 md:space-y-0">
+                              <button
+                                onClick={() => handleApprove(request.username)}
+                                className="text-green-600 dark:text-green-400 hover:text-green-900 dark:hover:text-green-300"
+                              >
+                                Approve
+                              </button>
+                              <button
+                                onClick={() => handleReject(request.username)}
+                                className="text-red-600 dark:text-red-400 hover:text-red-900 dark:hover:text-red-300"
+                              >
+                                Reject
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                        
+                        {/* Mobile-only reason row */}
+                        <tr key={`${request.username}-reason`} className="md:hidden bg-gray-50 dark:bg-zinc-700/50">
+                          <td colSpan={5} className="px-4 py-2">
+                            <div className="text-xs font-medium text-gray-500 dark:text-gray-300 uppercase mb-1">Reason:</div>
+                            <div className="relative">
+                              <div className="overflow-x-auto pb-3 -mx-4 px-4 scrollbar-thin scrollbar-thumb-rounded scrollbar-thumb-gray-400 dark:scrollbar-thumb-gray-600 scrollbar-track-transparent">
+                                <div className="text-sm text-gray-700 dark:text-gray-300 whitespace-nowrap py-2 pr-16 pl-1">
+                                  {request.reason}
+                                </div>
+                              </div>
+                              {/* Fade indicators for horizontal scroll */}
+                              <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-gray-50 dark:from-zinc-700/50 to-transparent pointer-events-none"></div>
+                              <div className="absolute left-0 top-0 bottom-0 w-8 bg-gradient-to-r from-gray-50 dark:from-zinc-700/50 to-transparent pointer-events-none"></div>
+                            </div>
+                            
+                            {/* Visual hint for scrolling */}
+                            <div className="text-xs text-gray-500 dark:text-gray-400 mt-1 flex items-center justify-center">
+                              <svg className="w-4 h-4 mr-1 animate-pulse" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M9 6L15 12L9 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                              </svg>
+                              <span>Scroll to see more</span>
+                              <svg className="w-4 h-4 ml-1 animate-pulse" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M15 6L9 12L15 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                              </svg>
+                            </div>
+                          </td>
+                        </tr>
+                      </>
                     );
                   })}
                 </tbody>
