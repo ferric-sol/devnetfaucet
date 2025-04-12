@@ -66,12 +66,19 @@ export function AirdropWithGithub({ faucetAddress, airdropAmount }: AirdropWithG
       return;
     }
 
+    if (!walletAddress.trim()) {
+      setAirdropResult('Please enter a wallet address');
+      return;
+    }
+
     setIsProcessing(true);
     setAirdropResult('Submitting access request...');
 
     try {
       const formData = new FormData();
       formData.append('reason', accessReason.trim());
+      formData.append('walletAddress', walletAddress);
+      formData.append('isAnonymous', isAnonymous.toString());
       const result = await requestAccess(formData);
       setAirdropResult(result);
       setShowAccessRequest(false);
