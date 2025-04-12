@@ -218,7 +218,8 @@ async function performAirdrop(
   isWhitelisted: boolean
 ): Promise<string> {
   try {
-    // Use our new RPC endpoint instead of the default one
+    // Since this is running on the server ("use server" directive), 
+    // we can use the custom RPC endpoint without CORS issues
     const connection = new Connection('http://rpc.devnetfaucet.org:8899/', 'confirmed');
     const walletAddressString = walletAddress.trim();
 
@@ -252,34 +253,40 @@ async function performAirdrop(
       })
     );
 
-    const signature = await sendAndConfirmTransaction(
-      connection,
-      transaction,
-      [senderKeypair]
-    );
+    try {
+      const signature = await sendAndConfirmTransaction(
+        connection,
+        transaction,
+        [senderKeypair]
+      );
+      
+      console.log('Custom RPC transaction successful with signature:', signature);
 
-    // Store the timestamp using the GitHub username as the key
-    const now = Date.now();
-    await safeKvSet(`user:${githubUsername}`, now);
-    
-    // Store airdrop record
-    await storeAirdropRecord({
-      username: githubUsername,
-      walletAddress: walletAddressString,
-      timestamp: now,
-      isAnonymous
-    });
+      // Store the timestamp using the GitHub username as the key
+      const now = Date.now();
+      await safeKvSet(`user:${githubUsername}`, now);
+      
+      // Store airdrop record
+      await storeAirdropRecord({
+        username: githubUsername,
+        walletAddress: walletAddressString,
+        timestamp: now,
+        isAnonymous
+      });
 
-    return 'Airdrop successful';
+      return 'Airdrop successful';
+    } catch (txError) {
+      console.log('Transaction error with custom RPC:', txError);
+      throw txError; // Re-throw to try fallback
+    }
   } catch(error) {
-    console.log('error airdropping with custom RPC: ', error);
+    console.log('Error using custom RPC, falling back to Solana devnet:', error);
     
-    // Try again with default RPC
+    // Fall back to the official Solana devnet
     try {
       const connection = new Connection(clusterApiUrl('devnet'), 'confirmed');
       const walletAddressString = walletAddress.trim();
       
-      // Skip validation, already done above
       const secretKey = process.env.SENDER_SECRET_KEY;
       if(!secretKey) return 'Missing sender key';
 
@@ -308,6 +315,8 @@ async function performAirdrop(
         transaction,
         [senderKeypair]
       );
+      
+      console.log('Fallback RPC transaction successful with signature:', signature);
 
       // Store the timestamp using the GitHub username as the key
       const now = Date.now();
@@ -323,7 +332,7 @@ async function performAirdrop(
 
       return 'Airdrop successful';
     } catch(fallbackError) {
-      console.log('error airdropping with fallback RPC: ', fallbackError);
+      console.log('Error with fallback RPC:', fallbackError);
       return 'Airdrop failed';
     }
   }
