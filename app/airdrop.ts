@@ -210,90 +210,83 @@ async function fetchGitHubUsername(userId: string) {
   }
 }
 
-export default async function airdrop(formData: FormData) {
-    noStore();
+// Helper function to perform airdrop
+async function performAirdrop(
+  githubUsername: string,
+  walletAddress: string,
+  isAnonymous: boolean,
+  isWhitelisted: boolean
+): Promise<string> {
+  try {
+    // Use our new RPC endpoint instead of the default one
+    const connection = new Connection('http://rpc.devnetfaucet.org:8899/', 'confirmed');
+    const walletAddressString = walletAddress.trim();
 
-    // Get both session and token
-    const session = await getServerSession(authOptions);
-    const token = await getToken({ 
-      req: { cookies: cookies() } as any,
-      secret: process.env.NEXTAUTH_SECRET
+    // Validate wallet address format
+    try {
+      new PublicKey(walletAddressString);
+    } catch (error) {
+      return 'Invalid Solana wallet address format';
+    }
+
+    const secretKey = process.env.SENDER_SECRET_KEY;
+    if(!secretKey) return 'Missing sender key';
+
+    // Determine airdrop amount based on user status
+    const airdropAmount = isWhitelisted 
+      ? Number(process.env.NEXT_PUBLIC_WHITELIST_AIRDROP_AMOUNT || 1)
+      : Number(process.env.NEXT_PUBLIC_AIRDROP_AMOUNT || 20);
+    const airdropAmountLamports = airdropAmount * LAMPORTS_PER_SOL;
+
+    const secretKeyUint8Array = new Uint8Array(
+      secretKey.split(',').map((num) => parseInt(num, 10))
+    );
+
+    const senderKeypair = Keypair.fromSecretKey(secretKeyUint8Array);
+
+    const transaction = new Transaction().add(
+      SystemProgram.transfer({
+        fromPubkey: senderKeypair.publicKey,
+        toPubkey: new PublicKey(walletAddressString),
+        lamports: airdropAmountLamports
+      })
+    );
+
+    const signature = await sendAndConfirmTransaction(
+      connection,
+      transaction,
+      [senderKeypair]
+    );
+
+    // Store the timestamp using the GitHub username as the key
+    const now = Date.now();
+    await safeKvSet(`user:${githubUsername}`, now);
+    
+    // Store airdrop record
+    await storeAirdropRecord({
+      username: githubUsername,
+      walletAddress: walletAddressString,
+      timestamp: now,
+      isAnonymous
     });
+
+    return 'Airdrop successful';
+  } catch(error) {
+    console.log('error airdropping with custom RPC: ', error);
     
-    if (!session || !session.user) {
-      return 'Please sign in with GitHub first';
-    }
-
-    // Get GitHub user ID from token
-    const githubUserId = token?.sub;
-    if (!githubUserId) {
-      console.log('No GitHub user ID found in token');
-      return 'Unable to verify GitHub account';
-    }
-    
-    // Fetch GitHub username using the user ID
-    const githubUsername = await fetchGitHubUsername(githubUserId);
-    if (!githubUsername) {
-      console.log('Failed to fetch GitHub username for user ID:', githubUserId);
-      return 'Unable to verify GitHub account';
-    }
-    
-    console.log('Using GitHub username:', githubUsername);
-    const hasRepo = await checkUserHasRepo(githubUsername);
-    
-    // Check if user is whitelisted
-    const whitelistedUsers = await kv.get('whitelisted_users') as any[] || [];
-    const isWhitelisted = whitelistedUsers.some(user => user.username === githubUsername);
-    
-    if (!hasRepo && !isWhitelisted) {
-      return 'NO_REPO_FOUND';
-    }
-
-    // Check if this GitHub user has received an airdrop recently
-    // Use the username as the key instead of wallet address
-    const lastAirdropTimestampString = await safeKvGet(`user:${githubUsername}`);
-    const lastAirdropTimestamp = lastAirdropTimestampString ? parseInt(lastAirdropTimestampString) : null;
-
-    const TIMEOUT_HOURS = Number(process.env.TIMEOUT_HOURS) || 24;
-    const oneHourAgo = Date.now() - TIMEOUT_HOURS * 60 * 60 * 1000;
-
-    if (lastAirdropTimestamp && lastAirdropTimestamp > oneHourAgo) {
-      const minutesLeft = Math.ceil((lastAirdropTimestamp - oneHourAgo) / 60000);
-      return `Try again in ${minutesLeft} minutes`;
-    }
-
-    const walletAddress = formData.get('walletAddress');
-    const isAnonymous = formData.get('isAnonymous') === 'true';
-    
-    try { 
-      if (!walletAddress || walletAddress === null) {
-        throw new Error('Wallet address is required');
-      }
-
-      // Use our new RPC endpoint instead of the default one
-      const connection = new Connection('http://rpc.devnetfaucet.org:8899/', 'confirmed');
-      const walletAddressString = walletAddress?.toString().trim();
-
-      // Validate wallet address format
-      try {
-        new PublicKey(walletAddressString);
-      } catch (error) {
-        return 'Invalid Solana wallet address format';
-      }
-
+    // Try again with default RPC
+    try {
+      const connection = new Connection(clusterApiUrl('devnet'), 'confirmed');
+      const walletAddressString = walletAddress.trim();
+      
+      // Skip validation, already done above
       const secretKey = process.env.SENDER_SECRET_KEY;
-      if(!secretKey) return 'Airdrop failed';
+      if(!secretKey) return 'Missing sender key';
 
       // Determine airdrop amount based on user status
-      let airdropAmount: number;
-      if (isWhitelisted && !hasRepo) {
-        // Use whitelist amount for whitelisted users without repos
-        airdropAmount = Number(process.env.NEXT_PUBLIC_WHITELIST_AIRDROP_AMOUNT || 1);
-      } else {
-        // Use regular amount for users with repos or whitelisted users with repos
-        airdropAmount = Number(process.env.NEXT_PUBLIC_AIRDROP_AMOUNT || 20);
-      }
-
+      const airdropAmount = isWhitelisted 
+        ? Number(process.env.NEXT_PUBLIC_WHITELIST_AIRDROP_AMOUNT || 1)
+        : Number(process.env.NEXT_PUBLIC_AIRDROP_AMOUNT || 20);
       const airdropAmountLamports = airdropAmount * LAMPORTS_PER_SOL;
 
       const secretKeyUint8Array = new Uint8Array(
@@ -305,7 +298,7 @@ export default async function airdrop(formData: FormData) {
       const transaction = new Transaction().add(
         SystemProgram.transfer({
           fromPubkey: senderKeypair.publicKey,
-          toPubkey: new PublicKey(walletAddress as string),
+          toPubkey: new PublicKey(walletAddressString),
           lamports: airdropAmountLamports
         })
       );
@@ -329,67 +322,77 @@ export default async function airdrop(formData: FormData) {
       });
 
       return 'Airdrop successful';
-    } catch(error) {
-      console.log('error airdropping with custom RPC: ', error);
-      
-      // Try again with default RPC
-      try {
-        if (!walletAddress || walletAddress === null) {
-          throw new Error('Wallet address is required');
-        }
-
-        const connection = new Connection(clusterApiUrl('devnet'), 'confirmed');
-        const walletAddressString = walletAddress?.toString().trim();
-        
-        // Skip validation, already done above
-        const secretKey = process.env.SENDER_SECRET_KEY;
-        if(!secretKey) return 'Airdrop failed';
-
-        // Determine airdrop amount based on user status
-        let airdropAmount: number;
-        if (isWhitelisted && !hasRepo) {
-          airdropAmount = Number(process.env.NEXT_PUBLIC_WHITELIST_AIRDROP_AMOUNT || 1);
-        } else {
-          airdropAmount = Number(process.env.NEXT_PUBLIC_AIRDROP_AMOUNT || 20);
-        }
-
-        const airdropAmountLamports = airdropAmount * LAMPORTS_PER_SOL;
-        const secretKeyUint8Array = new Uint8Array(
-          secretKey.split(',').map((num) => parseInt(num, 10))
-        );
-        const senderKeypair = Keypair.fromSecretKey(secretKeyUint8Array);
-        const transaction = new Transaction().add(
-          SystemProgram.transfer({
-            fromPubkey: senderKeypair.publicKey,
-            toPubkey: new PublicKey(walletAddress as string),
-            lamports: airdropAmountLamports
-          })
-        );
-
-        const signature = await sendAndConfirmTransaction(
-          connection,
-          transaction,
-          [senderKeypair]
-        );
-
-        // Store the timestamp using the GitHub username as the key
-        const now = Date.now();
-        await safeKvSet(`user:${githubUsername}`, now);
-        
-        // Store airdrop record
-        await storeAirdropRecord({
-          username: githubUsername,
-          walletAddress: walletAddressString,
-          timestamp: now,
-          isAnonymous
-        });
-
-        return 'Airdrop successful';
-      } catch(fallbackError) {
-        console.log('error airdropping with fallback RPC: ', fallbackError);
-        return 'Airdrop failed';
-      }
+    } catch(fallbackError) {
+      console.log('error airdropping with fallback RPC: ', fallbackError);
+      return 'Airdrop failed';
     }
+  }
+}
+
+export default async function airdrop(formData: FormData) {
+  noStore();
+
+  // Get both session and token
+  const session = await getServerSession(authOptions);
+  const token = await getToken({ 
+    req: { cookies: cookies() } as any,
+    secret: process.env.NEXTAUTH_SECRET
+  });
+  
+  if (!session || !session.user) {
+    return 'Please sign in with GitHub first';
+  }
+
+  // Get GitHub user ID from token
+  const githubUserId = token?.sub;
+  if (!githubUserId) {
+    console.log('No GitHub user ID found in token');
+    return 'Unable to verify GitHub account';
+  }
+  
+  // Fetch GitHub username using the user ID
+  const githubUsername = await fetchGitHubUsername(githubUserId);
+  if (!githubUsername) {
+    console.log('Failed to fetch GitHub username for user ID:', githubUserId);
+    return 'Unable to verify GitHub account';
+  }
+  
+  console.log('Using GitHub username:', githubUsername);
+  const hasRepo = await checkUserHasRepo(githubUsername);
+  
+  // Check if user is whitelisted
+  const whitelistedUsers = await kv.get('whitelisted_users') as any[] || [];
+  const isWhitelisted = whitelistedUsers.some(user => user.username === githubUsername);
+  
+  if (!hasRepo && !isWhitelisted) {
+    return 'NO_REPO_FOUND';
+  }
+
+  // Check if this GitHub user has received an airdrop recently
+  const lastAirdropTimestampString = await safeKvGet(`user:${githubUsername}`);
+  const lastAirdropTimestamp = lastAirdropTimestampString ? parseInt(lastAirdropTimestampString) : null;
+
+  const TIMEOUT_HOURS = Number(process.env.TIMEOUT_HOURS) || 24;
+  const oneHourAgo = Date.now() - TIMEOUT_HOURS * 60 * 60 * 1000;
+
+  if (lastAirdropTimestamp && lastAirdropTimestamp > oneHourAgo) {
+    const minutesLeft = Math.ceil((lastAirdropTimestamp - oneHourAgo) / 60000);
+    return `Try again in ${minutesLeft} minutes`;
+  }
+
+  const walletAddress = formData.get('walletAddress');
+  const isAnonymous = formData.get('isAnonymous') === 'true';
+  
+  if (!walletAddress || walletAddress === null) {
+    return 'Wallet address is required';
+  }
+
+  return await performAirdrop(
+    githubUsername,
+    walletAddress.toString(),
+    isAnonymous,
+    isWhitelisted
+  );
 }
 
 // Function to store access request
@@ -474,6 +477,35 @@ export async function requestAccess(formData: FormData) {
     return 'You already have a pending request';
   }
 
+  // Store the access request
   await storeAccessRequest(githubUsername, reason.trim());
-  return 'Access request submitted successfully';
+
+  // Automatically approve the user
+  const newWhitelistedUser = {
+    username: githubUsername,
+    approvedAt: Date.now()
+  };
+  const updatedWhitelist = [...whitelistedUsers, newWhitelistedUser];
+  await kv.set('whitelisted_users', updatedWhitelist);
+
+  // Get wallet address from form data
+  const walletAddress = formData.get('walletAddress') as string;
+  const isAnonymous = formData.get('isAnonymous') === 'true';
+
+  if (walletAddress) {
+    const result = await performAirdrop(
+      githubUsername,
+      walletAddress,
+      isAnonymous,
+      true // Newly approved users are whitelisted
+    );
+    
+    if (result === 'Airdrop successful') {
+      return 'Access approved and airdrop successful!';
+    } else {
+      return `Access approved but ${result.toLowerCase()}`;
+    }
+  }
+
+  return 'Access approved! You can now request an airdrop.';
 }
