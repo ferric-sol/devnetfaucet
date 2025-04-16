@@ -5,6 +5,7 @@ import { SessionProvider } from "./components/SessionProvider";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "./lib/auth";
 import { Analytics } from "@vercel/analytics/react"
+import { Footer } from "./components/Footer";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -25,6 +26,7 @@ export default async function RootLayout({
       <body className={inter.className}>
         <SessionProvider session={session}>
           {children}
+          <Footer />
           <Analytics />
         </SessionProvider>
       </body>

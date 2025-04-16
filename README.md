@@ -47,3 +47,32 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
+## Data Attribution
+
+This application uses data from the Electric Capital Crypto Ecosystems project to verify GitHub repositories associated with the Solana ecosystem.
+
+<table>
+  <tr>
+    <td>
+      <a href="https://github.com/electric-capital/crypto-ecosystems">
+        <img src="https://raw.githubusercontent.com/electric-capital/crypto-ecosystems/master/logo.png" alt="Electric Capital Logo" width="50">
+      </a>
+    </td>
+    <td>
+      <strong>Data Source:</strong> <a href="https://github.com/electric-capital/crypto-ecosystems">Electric Capital Crypto Ecosystems</a>
+      <br>
+      <small>If you're working in open source crypto, <a href="https://github.com/electric-capital/crypto-ecosystems">submit your repository here</a> to be counted.</small>
+    </td>
+  </tr>
+</table>
+
+The repository data is used to validate GitHub users requesting airdrops by checking if they contribute to the Solana ecosystem.
+
+To update the ecosystem data in your deployment, run:
+
+```bash
+# First, download the latest solana.jsonl file
+# Then, run the update script
+npx tsx scripts/update_ecosystem_data.ts
+```
+

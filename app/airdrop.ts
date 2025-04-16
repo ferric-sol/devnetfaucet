@@ -156,33 +156,54 @@ async function fetchAndParseToml() {
   return data;
 }
 
+// Update the checkUserHasRepo function to use the new KV storage format
 async function checkUserHasRepo(username: string) {
-  const tomlData = await fetchAndParseToml();
-  const repos = tomlData.repo || [];
-  
-  // Clean up the username to handle potential display names
-  // Remove spaces and special characters to get a more GitHub-username-like string
-  const cleanUsername = username.toLowerCase().replace(/[^a-z0-9-]/g, '');
-  
-  console.log('Checking for repos with username:', username);
-  console.log('Cleaned username for comparison:', cleanUsername);
-  
-  return repos.some((repo) => {
-    const repoUrl = repo.url.toLowerCase();
+  try {
+    console.log('Checking for repos with username:', username);
     
-    // Try different patterns that might match
-    const githubPattern = new RegExp(`(?:https?://)?(?:www\\.)?github\\.com/${username.toLowerCase()}(?:/|$)`);
-    const githubPatternClean = new RegExp(`(?:https?://)?(?:www\\.)?github\\.com/${cleanUsername}(?:/|$)`);
+    // Clean up the username to handle potential display names
+    // Remove spaces and special characters to get a more GitHub-username-like string
+    const cleanUsername = username.toLowerCase().replace(/[^a-z0-9-]/g, '');
+    console.log('Cleaned username for comparison:', cleanUsername);
     
-    const directMatch = githubPattern.test(repoUrl);
-    const cleanMatch = githubPatternClean.test(repoUrl);
-
-    if (directMatch || cleanMatch) {
-      console.log('Found matching repo:', repo.url);
+    // Get GitHub usernames from KV storage
+    const githubUsernames = await kv.get('solana_ecosystem_github_usernames') as string[] || [];
+    
+    // Direct match if the username is in the list
+    if (githubUsernames.includes(username.toLowerCase())) {
+      console.log('Username found in ecosystem repositories list');
       return true;
     }
+    
+    // Match with cleaned username
+    if (githubUsernames.includes(cleanUsername)) {
+      console.log('Cleaned username found in ecosystem repositories list');
+      return true;
+    }
+    
+    // If we haven't returned yet, try to get the full repositories list as a fallback
+    const githubRepos = await kv.get('solana_ecosystem_github_repos') as string[] || [];
+    
+    return githubRepos.some((repoUrl) => {
+      const repoUrlLower = repoUrl.toLowerCase();
+      
+      // Try different patterns that might match
+      const githubPattern = new RegExp(`(?:https?://)?(?:www\\.)?github\\.com/${username.toLowerCase()}(?:/|$)`);
+      const githubPatternClean = new RegExp(`(?:https?://)?(?:www\\.)?github\\.com/${cleanUsername}(?:/|$)`);
+      
+      const directMatch = githubPattern.test(repoUrlLower);
+      const cleanMatch = githubPatternClean.test(repoUrlLower);
+
+      if (directMatch || cleanMatch) {
+        console.log('Found matching repo:', repoUrl);
+        return true;
+      }
+      return false;
+    });
+  } catch (error) {
+    console.error('Error checking user repository:', error);
     return false;
-  });
+  }
 }
 
 // Function to fetch GitHub username from GitHub API using user ID
