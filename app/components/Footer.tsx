@@ -41,7 +41,7 @@ export function Footer() {
               </Link>
             </div>
             <p className="text-xs text-gray-500 dark:text-gray-500 text-center md:text-right">
-              If you're working in open source crypto, {' '}
+              If you&apos;re working in open source crypto, {' '}
               <Link 
                 href="https://github.com/electric-capital/crypto-ecosystems" 
                 target="_blank" 
