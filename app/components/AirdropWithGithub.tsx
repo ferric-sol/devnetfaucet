@@ -94,7 +94,7 @@ export function AirdropWithGithub({ faucetAddress, airdropAmount }: AirdropWithG
   const getFaucetBalance = useCallback(async () => {
     if(!faucetAddress) return 'No faucet!';
     try {
-      const connection = new Connection('http://rpc.devnetfaucet.org:8899/', 'confirmed');
+      const connection = new Connection(clusterApiUrl('devnet'), 'confirmed');
       const faucetPublicKey = new PublicKey(faucetAddress);
       const balanceInLamports = await connection.getBalance(faucetPublicKey);
       const balanceInSol = balanceInLamports / LAMPORTS_PER_SOL;

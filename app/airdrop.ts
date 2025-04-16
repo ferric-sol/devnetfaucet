@@ -218,9 +218,8 @@ async function performAirdrop(
   isWhitelisted: boolean
 ): Promise<string> {
   try {
-    // Since this is running on the server ("use server" directive), 
-    // we can use the custom RPC endpoint without CORS issues
-    const connection = new Connection('http://rpc.devnetfaucet.org:8899/', 'confirmed');
+    // Use Solana's official devnet RPC instead of custom endpoint
+    const connection = new Connection(clusterApiUrl('devnet'), 'confirmed');
     const walletAddressString = walletAddress.trim();
 
     // Validate wallet address format
