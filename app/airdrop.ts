@@ -253,10 +253,26 @@ async function performAirdrop(
     const secretKey = process.env.SENDER_SECRET_KEY;
     if(!secretKey) return 'Missing sender key';
 
+    // Check if user is in the upgraded users list
+    const upgradedUsers = await kv.get('upgraded_users') as any[] || [];
+    const isUpgraded = upgradedUsers.some(user => user.username === githubUsername.toLowerCase());
+
     // Determine airdrop amount based on user status
-    const airdropAmount = isWhitelisted 
-      ? Number(process.env.NEXT_PUBLIC_WHITELIST_AIRDROP_AMOUNT || 1)
-      : Number(process.env.NEXT_PUBLIC_AIRDROP_AMOUNT || 20);
+    let airdropAmount: number;
+    if (isUpgraded) {
+      // Upgraded users get the full AIRDROP_AMOUNT regardless of whitelist status
+      airdropAmount = Number(process.env.NEXT_PUBLIC_AIRDROP_AMOUNT || 20);
+      console.log(`User ${githubUsername} is upgraded, giving full amount: ${airdropAmount}`);
+    } else if (isWhitelisted) {
+      // Whitelisted but not upgraded users get the WHITELIST_AIRDROP_AMOUNT
+      airdropAmount = Number(process.env.NEXT_PUBLIC_WHITELIST_AIRDROP_AMOUNT || 1);
+      console.log(`User ${githubUsername} is whitelisted, giving: ${airdropAmount}`);
+    } else {
+      // Regular users with GitHub repos in the Solana ecosystem
+      airdropAmount = Number(process.env.NEXT_PUBLIC_AIRDROP_AMOUNT || 20);
+      console.log(`User ${githubUsername} is regular user with GitHub repo, giving: ${airdropAmount}`);
+    }
+    
     const airdropAmountLamports = airdropAmount * LAMPORTS_PER_SOL;
 
     const secretKeyUint8Array = new Uint8Array(
@@ -401,7 +417,12 @@ export default async function airdrop(formData: FormData) {
   const lastAirdropTimestampString = await safeKvGet(`user:${githubUsername}`);
   const lastAirdropTimestamp = lastAirdropTimestampString ? parseInt(lastAirdropTimestampString) : null;
 
-  const TIMEOUT_HOURS = Number(process.env.TIMEOUT_HOURS) || 24;
+  // Check if user is in the upgraded users list
+  const upgradedUsers = await kv.get('upgraded_users') as any[] || [];
+  const isUpgraded = upgradedUsers.some(user => user.username === githubUsername.toLowerCase());
+
+  // Upgraded users get a shorter timeout
+  const TIMEOUT_HOURS = isUpgraded ? 12 : (Number(process.env.TIMEOUT_HOURS) || 24);
   const oneHourAgo = Date.now() - TIMEOUT_HOURS * 60 * 60 * 1000;
 
   if (lastAirdropTimestamp && lastAirdropTimestamp > oneHourAgo) {

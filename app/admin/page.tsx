@@ -28,15 +28,24 @@ interface RejectedUser {
   rejectedAt: number;
 }
 
+interface UpgradedUser {
+  username: string;
+  upgradedAt: number;
+}
+
 export default function AdminPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const [requests, setRequests] = useState<AccessRequest[]>([]);
   const [whitelistedUsers, setWhitelistedUsers] = useState<WhitelistedUser[]>([]);
+  const [upgradedUsers, setUpgradedUsers] = useState<UpgradedUser[]>([]);
   const [airdropHistory, setAirdropHistory] = useState<AirdropRecord[]>([]);
   const [rejectedUsers, setRejectedUsers] = useState<RejectedUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [upgradeUsername, setUpgradeUsername] = useState('');
+  const [upgradeMessage, setUpgradeMessage] = useState<{type: 'success' | 'error', text: string} | null>(null);
+  const [processing, setProcessing] = useState(false);
   const [dedupeStatus, setDedupeStatus] = useState<{
     originalCount: number;
     dedupedCount: number;
@@ -52,28 +61,31 @@ export default function AdminPage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [requestsRes, whitelistedRes, historyRes, rejectedRes] = await Promise.all([
+        const [requestsRes, whitelistedRes, historyRes, rejectedRes, upgradedRes] = await Promise.all([
           fetch('/api/admin/access-requests'),
           fetch('/api/admin/whitelisted-users'),
           fetch('/api/admin/airdrop-history'),
-          fetch('/api/admin/rejected-users')
+          fetch('/api/admin/rejected-users'),
+          fetch('/api/admin/upgraded-users')
         ]);
 
-        if (!requestsRes.ok || !whitelistedRes.ok || !historyRes.ok || !rejectedRes.ok) {
+        if (!requestsRes.ok || !whitelistedRes.ok || !historyRes.ok || !rejectedRes.ok || !upgradedRes.ok) {
           throw new Error('Failed to fetch data');
         }
 
-        const [requestsData, whitelistedData, historyData, rejectedData] = await Promise.all([
+        const [requestsData, whitelistedData, historyData, rejectedData, upgradedData] = await Promise.all([
           requestsRes.json(),
           whitelistedRes.json(),
           historyRes.json(),
-          rejectedRes.json()
+          rejectedRes.json(),
+          upgradedRes.json()
         ]);
 
         setRequests(requestsData);
         setWhitelistedUsers(whitelistedData);
         setAirdropHistory(historyData);
         setRejectedUsers(rejectedData);
+        setUpgradedUsers(upgradedData);
       } catch (error) {
         console.error('Error fetching data:', error);
         setError(error instanceof Error ? error.message : 'An error occurred');
@@ -180,6 +192,59 @@ export default function AdminPage() {
     } catch (error) {
       console.error('Error approving rejected user:', error);
       setError(error instanceof Error ? error.message : 'Failed to approve rejected user');
+    }
+  };
+
+  const handleUpgradeUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!upgradeUsername.trim()) return;
+    
+    setProcessing(true);
+    setUpgradeMessage(null);
+    
+    try {
+      const res = await fetch('/api/admin/add-upgraded-user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: upgradeUsername.trim() })
+      });
+
+      const data = await res.json();
+      
+      if (res.ok && data.success) {
+        // Add the new user to the local state
+        setUpgradedUsers(prev => [...prev, { 
+          username: upgradeUsername.trim().toLowerCase(), 
+          upgradedAt: Date.now() 
+        }]);
+        setUpgradeMessage({ type: 'success', text: data.message });
+        setUpgradeUsername('');
+      } else {
+        setUpgradeMessage({ type: 'error', text: data.message || 'Failed to upgrade user' });
+      }
+    } catch (error) {
+      console.error('Error upgrading user:', error);
+      setUpgradeMessage({ type: 'error', text: 'An error occurred while upgrading user' });
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const handleRemoveUpgradedUser = async (username: string) => {
+    try {
+      const res = await fetch('/api/admin/remove-upgraded-user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username })
+      });
+
+      if (res.ok) {
+        // Update local state
+        setUpgradedUsers(prev => prev.filter(user => user.username !== username));
+      }
+    } catch (error) {
+      console.error('Error removing upgraded user:', error);
+      setError(error instanceof Error ? error.message : 'Failed to remove upgraded user');
     }
   };
 
@@ -465,6 +530,85 @@ export default function AdminPage() {
               </table>
             </div>
           </div>
+        </div>
+
+        {/* Upgraded Users Section */}
+        <div className="mb-8">
+          <h2 className="text-xl font-bold mb-4">Upgraded Users ({upgradedUsers.length})</h2>
+          <p className="text-sm text-gray-600 mb-4">
+            These users receive {process.env.NEXT_PUBLIC_AIRDROP_AMOUNT || '20'} SOL per airdrop instead of the standard amount
+          </p>
+          
+          {/* Add User Form */}
+          <form onSubmit={handleUpgradeUser} className="mb-4 p-4 bg-gray-50 rounded-lg">
+            <h3 className="font-medium mb-2">Add User to Upgraded List</h3>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <input
+                type="text"
+                value={upgradeUsername}
+                onChange={(e) => setUpgradeUsername(e.target.value)}
+                placeholder="GitHub username"
+                className="flex-grow px-3 py-2 border border-gray-300 rounded-md"
+                disabled={processing}
+              />
+              <button
+                type="submit"
+                className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 disabled:bg-blue-300"
+                disabled={processing || !upgradeUsername.trim()}
+              >
+                {processing ? 'Adding...' : 'Add User'}
+              </button>
+            </div>
+            {upgradeMessage && (
+              <p className={`mt-2 text-sm ${upgradeMessage.type === 'success' ? 'text-green-600' : 'text-red-600'}`}>
+                {upgradeMessage.text}
+              </p>
+            )}
+          </form>
+          
+          {/* Upgraded Users List */}
+          {upgradedUsers.length > 0 ? (
+            <div className="overflow-x-auto">
+              <table className="min-w-full bg-white border border-gray-200">
+                <thead>
+                  <tr>
+                    <th className="px-4 py-2 border-b text-left">Username</th>
+                    <th className="px-4 py-2 border-b text-left">Upgraded At</th>
+                    <th className="px-4 py-2 border-b text-left">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {upgradedUsers.map((user) => (
+                    <tr key={user.username} className="hover:bg-gray-50">
+                      <td className="px-4 py-2 border-b">
+                        <a 
+                          href={`https://github.com/${user.username}`} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="text-blue-600 hover:underline"
+                        >
+                          {user.username}
+                        </a>
+                      </td>
+                      <td className="px-4 py-2 border-b">
+                        {user.upgradedAt ? formatDistanceToNow(user.upgradedAt, { addSuffix: true }) : 'N/A'}
+                      </td>
+                      <td className="px-4 py-2 border-b">
+                        <button
+                          onClick={() => handleRemoveUpgradedUser(user.username)}
+                          className="px-3 py-1 bg-red-500 text-white text-sm rounded hover:bg-red-600"
+                        >
+                          Remove
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p className="text-gray-500 italic">No upgraded users</p>
+          )}
         </div>
       </div>
     </div>
