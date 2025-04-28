@@ -30,6 +30,14 @@ export interface AirdropRecord {
   isAnonymous?: boolean;
 }
 
+// Define the structure for vouch records
+export interface VouchRecord {
+  username: string;
+  vouchedBy: string;
+  timestamp: number;
+  voucherType: 'github' | 'upgraded';
+}
+
 // Helper function to safely use KV or fallback to in-memory storage
 async function safeKvGet(key: string): Promise<string | null> {
   try {
@@ -374,6 +382,258 @@ async function performAirdrop(
   }
 }
 
+// Function to store vouch request
+export async function storeVouchRequest(username: string): Promise<void> {
+  try {
+    // Get existing vouch requests
+    let vouchRequests: string[] = [];
+    try {
+      const existingRequests = await kv.get('vouch_requests') as string[] | null;
+      if (existingRequests) {
+        vouchRequests = existingRequests;
+      }
+    } catch (error) {
+      console.log('Error getting vouch requests:', error);
+    }
+
+    // Add new request if not already in the list
+    if (!vouchRequests.includes(username)) {
+      vouchRequests.push(username);
+      
+      // Store updated requests
+      try {
+        await kv.set('vouch_requests', vouchRequests);
+      } catch (error) {
+        console.log('Error storing vouch requests:', error);
+      }
+    }
+  } catch (error) {
+    console.error('Failed to store vouch request:', error);
+  }
+}
+
+// Function to get all vouch requests
+export async function getVouchRequests(): Promise<string[]> {
+  try {
+    const vouchRequests = await kv.get('vouch_requests') as string[] | null;
+    return vouchRequests || [];
+  } catch (error) {
+    console.log('Error getting vouch requests:', error);
+    return [];
+  }
+}
+
+// Function to check if a user is vouched
+export async function isUserVouched(username: string): Promise<boolean> {
+  try {
+    const vouchedUsers = await kv.get('vouched_users') as VouchRecord[] | null;
+    return vouchedUsers ? vouchedUsers.some(record => record.username === username) : false;
+  } catch (error) {
+    console.log('Error checking if user is vouched:', error);
+    return false;
+  }
+}
+
+// Function to vouch for a user
+export async function vouchForUser(username: string, voucherUsername: string, voucherType: 'github' | 'upgraded'): Promise<boolean> {
+  try {
+    // Check if user is already vouched
+    if (await isUserVouched(username)) {
+      return false;
+    }
+    
+    // Get existing vouched users
+    let vouchedUsers: VouchRecord[] = [];
+    try {
+      const existingVouched = await kv.get('vouched_users') as VouchRecord[] | null;
+      if (existingVouched) {
+        vouchedUsers = existingVouched;
+      }
+    } catch (error) {
+      console.log('Error getting vouched users:', error);
+    }
+    
+    // Create new vouch record
+    const vouchRecord: VouchRecord = {
+      username,
+      vouchedBy: voucherUsername,
+      timestamp: Date.now(),
+      voucherType
+    };
+    
+    // Add to vouched users
+    vouchedUsers.push(vouchRecord);
+    
+    // Store updated vouched users
+    try {
+      await kv.set('vouched_users', vouchedUsers);
+    } catch (error) {
+      console.log('Error storing vouched users:', error);
+      return false;
+    }
+    
+    // Remove from vouch requests
+    try {
+      const vouchRequests = await kv.get('vouch_requests') as string[] | null;
+      if (vouchRequests) {
+        const updatedRequests = vouchRequests.filter(req => req !== username);
+        await kv.set('vouch_requests', updatedRequests);
+      }
+    } catch (error) {
+      console.log('Error updating vouch requests:', error);
+    }
+    
+    return true;
+  } catch (error) {
+    console.error('Failed to vouch for user:', error);
+    return false;
+  }
+}
+
+// Function to remove a vouch
+export async function unvouchUser(username: string): Promise<boolean> {
+  try {
+    // Get existing vouched users
+    const vouchedUsers = await kv.get('vouched_users') as VouchRecord[] | null;
+    if (!vouchedUsers) {
+      return false;
+    }
+    
+    // Remove the user from vouched users
+    const updatedVouched = vouchedUsers.filter(record => record.username !== username);
+    
+    // Store updated vouched users
+    try {
+      await kv.set('vouched_users', updatedVouched);
+    } catch (error) {
+      console.log('Error updating vouched users:', error);
+      return false;
+    }
+    
+    return true;
+  } catch (error) {
+    console.error('Failed to unvouch user:', error);
+    return false;
+  }
+}
+
+// Function to get all vouched users
+export async function getVouchedUsers(): Promise<VouchRecord[]> {
+  try {
+    const vouchedUsers = await kv.get('vouched_users') as VouchRecord[] | null;
+    return vouchedUsers || [];
+  } catch (error) {
+    console.log('Error getting vouched users:', error);
+    return [];
+  }
+}
+
+// Function to create vouch request
+export async function createVouchRequest(formData: FormData) {
+  noStore();
+  
+  const session = await getServerSession(authOptions);
+  
+  if (!session || !session.user) {
+    return 'Please sign in with GitHub first';
+  }
+  
+  const token = await getToken({ 
+    req: { cookies: cookies() } as any,
+    secret: process.env.NEXTAUTH_SECRET
+  });
+  
+  const githubUserId = token?.sub;
+  if (!githubUserId) {
+    return 'Unable to verify GitHub account';
+  }
+  
+  const githubUsername = await fetchGitHubUsername(githubUserId);
+  if (!githubUsername) {
+    return 'Unable to verify GitHub account';
+  }
+
+  // Check if user already has a GitHub repo in Solana ecosystem
+  const hasRepo = await checkUserHasRepo(githubUsername);
+  
+  // Check if user is already whitelisted or upgraded
+  const whitelistedUsers = await kv.get('whitelisted_users') as any[] || [];
+  const upgradedUsers = await kv.get('upgraded_users') as any[] || [];
+  
+  const isWhitelisted = whitelistedUsers.some(user => user.username === githubUsername);
+  const isUpgraded = upgradedUsers.some(user => user.username.toLowerCase() === githubUsername.toLowerCase());
+  
+  if (hasRepo || isWhitelisted || isUpgraded) {
+    return 'You are already eligible for airdrops';
+  }
+  
+  // Check if user is already vouched
+  if (await isUserVouched(githubUsername)) {
+    return 'You have already been vouched for';
+  }
+  
+  // Store vouch request
+  await storeVouchRequest(githubUsername);
+  
+  return 'Vouch request created successfully';
+}
+
+// Function to vouch for a user
+export async function vouchForUserAction(formData: FormData) {
+  noStore();
+  
+  const session = await getServerSession(authOptions);
+  
+  if (!session || !session.user) {
+    return 'Please sign in with GitHub first';
+  }
+  
+  const token = await getToken({ 
+    req: { cookies: cookies() } as any,
+    secret: process.env.NEXTAUTH_SECRET
+  });
+  
+  const githubUserId = token?.sub;
+  if (!githubUserId) {
+    return 'Unable to verify GitHub account';
+  }
+  
+  const githubUsername = await fetchGitHubUsername(githubUserId);
+  if (!githubUsername) {
+    return 'Unable to verify GitHub account';
+  }
+
+  // Check if voucher is eligible (has repo in Solana ecosystem or is upgraded)
+  const hasRepo = await checkUserHasRepo(githubUsername);
+  
+  // Check if user is upgraded
+  const upgradedUsers = await kv.get('upgraded_users') as any[] || [];
+  const isUpgraded = upgradedUsers.some(user => user.username.toLowerCase() === githubUsername.toLowerCase());
+  
+  if (!hasRepo && !isUpgraded) {
+    return 'You are not eligible to vouch for others';
+  }
+  
+  // Get the username to vouch for
+  const usernameToVouch = formData.get('username') as string;
+  if (!usernameToVouch) {
+    return 'No username provided to vouch for';
+  }
+  
+  // Determine voucher type
+  const voucherType = isUpgraded ? 'upgraded' : 'github';
+  
+  // Vouch for the user
+  const success = await vouchForUser(usernameToVouch, githubUsername, voucherType);
+  
+  if (success) {
+    return 'User vouched successfully';
+  } else {
+    return 'Failed to vouch for user or user already vouched';
+  }
+}
+
+// Update the airdrop function to consider vouched users as well
 export default async function airdrop(formData: FormData) {
   noStore();
 
@@ -409,7 +669,10 @@ export default async function airdrop(formData: FormData) {
   const whitelistedUsers = await kv.get('whitelisted_users') as any[] || [];
   const isWhitelisted = whitelistedUsers.some(user => user.username === githubUsername);
   
-  if (!hasRepo && !isWhitelisted) {
+  // Check if user is vouched
+  const isVouched = await isUserVouched(githubUsername);
+  
+  if (!hasRepo && !isWhitelisted && !isVouched) {
     return 'NO_REPO_FOUND';
   }
 
@@ -437,11 +700,14 @@ export default async function airdrop(formData: FormData) {
     return 'Wallet address is required';
   }
 
+  // Determine if the user should be treated as whitelisted
+  const effectivelyWhitelisted = isWhitelisted || isVouched;
+
   return await performAirdrop(
     githubUsername,
     walletAddress.toString(),
     isAnonymous,
-    isWhitelisted
+    effectivelyWhitelisted
   );
 }
 

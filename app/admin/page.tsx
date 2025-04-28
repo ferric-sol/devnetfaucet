@@ -33,6 +33,13 @@ interface UpgradedUser {
   upgradedAt: number;
 }
 
+interface VouchRecord {
+  username: string;
+  vouchedBy: string;
+  timestamp: number;
+  voucherType: 'github' | 'upgraded';
+}
+
 export default function AdminPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
@@ -41,6 +48,8 @@ export default function AdminPage() {
   const [upgradedUsers, setUpgradedUsers] = useState<UpgradedUser[]>([]);
   const [airdropHistory, setAirdropHistory] = useState<AirdropRecord[]>([]);
   const [rejectedUsers, setRejectedUsers] = useState<RejectedUser[]>([]);
+  const [vouchRequests, setVouchRequests] = useState<string[]>([]);
+  const [vouchedUsers, setVouchedUsers] = useState<VouchRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [upgradeUsername, setUpgradeUsername] = useState('');
@@ -61,24 +70,46 @@ export default function AdminPage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [requestsRes, whitelistedRes, historyRes, rejectedRes, upgradedRes] = await Promise.all([
+        const [
+          requestsRes, 
+          whitelistedRes, 
+          historyRes, 
+          rejectedRes, 
+          upgradedRes,
+          vouchRequestsRes,
+          vouchedUsersRes
+        ] = await Promise.all([
           fetch('/api/admin/access-requests'),
           fetch('/api/admin/whitelisted-users'),
           fetch('/api/admin/airdrop-history'),
           fetch('/api/admin/rejected-users'),
-          fetch('/api/admin/upgraded-users')
+          fetch('/api/admin/upgraded-users'),
+          fetch('/api/admin/vouch-requests'),
+          fetch('/api/admin/vouched-users')
         ]);
 
-        if (!requestsRes.ok || !whitelistedRes.ok || !historyRes.ok || !rejectedRes.ok || !upgradedRes.ok) {
+        if (!requestsRes.ok || !whitelistedRes.ok || !historyRes.ok || 
+            !rejectedRes.ok || !upgradedRes.ok || !vouchRequestsRes.ok || 
+            !vouchedUsersRes.ok) {
           throw new Error('Failed to fetch data');
         }
 
-        const [requestsData, whitelistedData, historyData, rejectedData, upgradedData] = await Promise.all([
+        const [
+          requestsData, 
+          whitelistedData, 
+          historyData, 
+          rejectedData, 
+          upgradedData,
+          vouchRequestsData,
+          vouchedUsersData
+        ] = await Promise.all([
           requestsRes.json(),
           whitelistedRes.json(),
           historyRes.json(),
           rejectedRes.json(),
-          upgradedRes.json()
+          upgradedRes.json(),
+          vouchRequestsRes.json(),
+          vouchedUsersRes.json()
         ]);
 
         setRequests(requestsData);
@@ -86,6 +117,8 @@ export default function AdminPage() {
         setAirdropHistory(historyData);
         setRejectedUsers(rejectedData);
         setUpgradedUsers(upgradedData);
+        setVouchRequests(vouchRequestsData);
+        setVouchedUsers(vouchedUsersData);
       } catch (error) {
         console.error('Error fetching data:', error);
         setError(error instanceof Error ? error.message : 'An error occurred');
@@ -245,6 +278,68 @@ export default function AdminPage() {
     } catch (error) {
       console.error('Error removing upgraded user:', error);
       setError(error instanceof Error ? error.message : 'Failed to remove upgraded user');
+    }
+  };
+
+  const handleApproveVouch = async (username: string) => {
+    try {
+      const res = await fetch('/api/admin/approve-vouch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username })
+      });
+
+      if (!res.ok) throw new Error('Failed to approve vouch request');
+
+      // Update local state
+      setVouchRequests(prev => prev.filter(req => req !== username));
+      
+      // Add to vouched users
+      setVouchedUsers(prev => [...prev, {
+        username,
+        vouchedBy: 'ADMIN',
+        timestamp: Date.now(),
+        voucherType: 'upgraded'
+      }]);
+    } catch (error) {
+      console.error('Error approving vouch request:', error);
+      setError(error instanceof Error ? error.message : 'Failed to approve vouch request');
+    }
+  };
+
+  const handleRejectVouch = async (username: string) => {
+    try {
+      const res = await fetch('/api/admin/reject-vouch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username })
+      });
+
+      if (!res.ok) throw new Error('Failed to reject vouch request');
+
+      // Update local state
+      setVouchRequests(prev => prev.filter(req => req !== username));
+    } catch (error) {
+      console.error('Error rejecting vouch request:', error);
+      setError(error instanceof Error ? error.message : 'Failed to reject vouch request');
+    }
+  };
+
+  const handleUnvouch = async (username: string) => {
+    try {
+      const res = await fetch('/api/admin/unvouch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username })
+      });
+
+      if (!res.ok) throw new Error('Failed to unvouch user');
+
+      // Update local state
+      setVouchedUsers(prev => prev.filter(user => user.username !== username));
+    } catch (error) {
+      console.error('Error unvouching user:', error);
+      setError(error instanceof Error ? error.message : 'Failed to unvouch user');
     }
   };
 
@@ -609,6 +704,120 @@ export default function AdminPage() {
           ) : (
             <p className="text-gray-500 italic">No upgraded users</p>
           )}
+        </div>
+
+        {/* Vouch Requests Section */}
+        <div>
+          <h2 className="text-xl md:text-2xl font-semibold mb-4">Vouch Requests</h2>
+          <div className="bg-white dark:bg-zinc-800 rounded-lg shadow overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                <thead className="bg-gray-50 dark:bg-zinc-700">
+                  <tr>
+                    <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Username</th>
+                    <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white dark:bg-zinc-800 divide-y divide-gray-200 dark:divide-gray-700">
+                  {vouchRequests.length > 0 ? (
+                    vouchRequests.map((username) => (
+                      <tr key={username}>
+                        <td className="px-4 md:px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center">
+                            <div className="ml-4">
+                              <div className="text-sm font-medium text-gray-900 dark:text-gray-100">{username}</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-4 md:px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center space-x-2">
+                            <button
+                              onClick={() => handleApproveVouch(username)}
+                              className="bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300 px-3 py-1 rounded text-xs"
+                            >
+                              Approve
+                            </button>
+                            <button
+                              onClick={() => handleRejectVouch(username)}
+                              className="bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300 px-3 py-1 rounded text-xs"
+                            >
+                              Reject
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td className="px-4 md:px-6 py-4 whitespace-nowrap text-center text-sm text-gray-500 dark:text-gray-400" colSpan={2}>
+                        No vouch requests found
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        {/* Vouched Users Section */}
+        <div>
+          <h2 className="text-xl md:text-2xl font-semibold mb-4">Vouched Users</h2>
+          <div className="bg-white dark:bg-zinc-800 rounded-lg shadow overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                <thead className="bg-gray-50 dark:bg-zinc-700">
+                  <tr>
+                    <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Username</th>
+                    <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Vouched By</th>
+                    <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Voucher Type</th>
+                    <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Time</th>
+                    <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white dark:bg-zinc-800 divide-y divide-gray-200 dark:divide-gray-700">
+                  {vouchedUsers.length > 0 ? (
+                    vouchedUsers.map((user) => (
+                      <tr key={user.username}>
+                        <td className="px-4 md:px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center">
+                            <div className="ml-4">
+                              <div className="text-sm font-medium text-gray-900 dark:text-gray-100">{user.username}</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-4 md:px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm text-gray-500 dark:text-gray-400">{user.vouchedBy}</div>
+                        </td>
+                        <td className="px-4 md:px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm text-gray-500 dark:text-gray-400">{user.voucherType}</div>
+                        </td>
+                        <td className="px-4 md:px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm text-gray-500 dark:text-gray-400">
+                            {formatDistanceToNow(new Date(user.timestamp), { addSuffix: true })}
+                          </div>
+                        </td>
+                        <td className="px-4 md:px-6 py-4 whitespace-nowrap">
+                          <button
+                            onClick={() => handleUnvouch(user.username)}
+                            className="bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300 px-3 py-1 rounded text-xs"
+                          >
+                            Unvouch
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td className="px-4 md:px-6 py-4 whitespace-nowrap text-center text-sm text-gray-500 dark:text-gray-400" colSpan={5}>
+                        No vouched users found
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
       </div>
     </div>
