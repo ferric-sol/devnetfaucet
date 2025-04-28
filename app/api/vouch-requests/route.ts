@@ -1,65 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getVouchRequests } from '@/app/airdrop';
-import { getServerSession } from 'next-auth/next';
+import { getServerSession } from "next-auth/next";
 import { authOptions } from '@/app/lib/auth';
-import { getToken } from 'next-auth/jwt';
-import { cookies } from 'next/headers';
+import { getToken } from "next-auth/jwt";
+import { cookies } from "next/headers";
 import { kv } from "@vercel/kv";
-
-// Function to fetch GitHub username from GitHub API using user ID
-async function fetchGitHubUsername(userId: string) {
-  try {
-    const response = await fetch(`https://api.github.com/user/${userId}`, {
-      headers: {
-        'Accept': 'application/vnd.github.v3+json',
-        'User-Agent': 'DevNetFaucet',
-        // Add GitHub token if you have one to avoid rate limits
-        ...(process.env.GITHUB_API_TOKEN ? { 'Authorization': `token ${process.env.GITHUB_API_TOKEN}` } : {})
-      }
-    });
-    
-    if (!response.ok) {
-      console.error('GitHub API error:', response.status, await response.text());
-      return null;
-    }
-    
-    const data = await response.json();
-    return data.login; // This is the GitHub username
-  } catch (error) {
-    console.error('Error fetching GitHub username:', error);
-    return null;
-  }
-}
-
-// Helper function to check if the user has a repo in the Solana ecosystem
-async function checkUserHasRepo(username: string) {
-  try {
-    const githubUsernames = await kv.get('solana_ecosystem_github_usernames') as string[] || [];
-    
-    if (githubUsernames.includes(username.toLowerCase())) {
-      return true;
-    }
-    
-    const cleanUsername = username.toLowerCase().replace(/[^a-z0-9-]/g, '');
-    if (githubUsernames.includes(cleanUsername)) {
-      return true;
-    }
-    
-    const githubRepos = await kv.get('solana_ecosystem_github_repos') as string[] || [];
-    
-    return githubRepos.some((repoUrl) => {
-      const repoUrlLower = repoUrl.toLowerCase();
-      
-      const githubPattern = new RegExp(`(?:https?://)?(?:www\\.)?github\\.com/${username.toLowerCase()}(?:/|$)`);
-      const githubPatternClean = new RegExp(`(?:https?://)?(?:www\\.)?github\\.com/${cleanUsername}(?:/|$)`);
-      
-      return githubPattern.test(repoUrlLower) || githubPatternClean.test(repoUrlLower);
-    });
-  } catch (error) {
-    console.error('Error checking user repository:', error);
-    return false;
-  }
-}
+import { fetchGitHubUsername, checkUserHasRepo } from '@/app/airdrop';
 
 export async function GET(request: NextRequest) {
   try {
@@ -99,9 +44,21 @@ export async function GET(request: NextRequest) {
     }
     
     // Get the vouch requests
-    const vouchRequests = await getVouchRequests();
+    const vouchRequests = await kv.get('vouch_requests') as string[] || [];
     
-    return NextResponse.json(vouchRequests);
+    // Get whitelisted users
+    const whitelistedUsers = await kv.get('whitelisted_users') as any[] || [];
+    
+    // Combine vouch requests and whitelisted users
+    const allUsers = [
+      ...vouchRequests,
+      ...whitelistedUsers.map(user => user.username)
+    ];
+    
+    // Remove duplicates using Array.from
+    const uniqueUsers = Array.from(new Set(allUsers));
+    
+    return NextResponse.json(uniqueUsers);
   } catch (error) {
     console.error('Error in vouch-requests API:', error);
     return new NextResponse('An error occurred while processing your request', { status: 500 });

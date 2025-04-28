@@ -22,6 +22,7 @@ export function AirdropWithGithub({ faucetAddress, airdropAmount }: AirdropWithG
   const [isAnonymous, setIsAnonymous] = useState(false);
   const [showAccessRequest, setShowAccessRequest] = useState(false);
   const [accessReason, setAccessReason] = useState('');
+  const [showVouchBanner, setShowVouchBanner] = useState(false);
 
   const handleAirdrop = async () => {
     if (!session) {
@@ -48,6 +49,9 @@ export function AirdropWithGithub({ faucetAddress, airdropAmount }: AirdropWithG
         setAirdropResult('No eligible repository found in Solana ecosystem');
       } else {
         setAirdropResult(result);
+        if (result === 'Airdrop successful') {
+          setShowVouchBanner(true);
+        }
       }
     } catch (error) {
       console.error('Error during airdrop:', error);
@@ -85,6 +89,9 @@ export function AirdropWithGithub({ faucetAddress, airdropAmount }: AirdropWithG
       setAirdropResult(result);
       setShowAccessRequest(false);
       setAccessReason('');
+      if (result.includes('success')) {
+        setShowVouchBanner(true);
+      }
     } catch (error) {
       console.error('Error requesting access:', error);
       setAirdropResult('An error occurred. Please try again.');
@@ -231,6 +238,22 @@ export function AirdropWithGithub({ faucetAddress, airdropAmount }: AirdropWithG
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {showVouchBanner && (
+        <div className="w-full p-4 rounded-md bg-blue-100 text-blue-800 dark:bg-blue-800/30 dark:text-blue-300">
+          <div className="text-center mb-2">
+            Help others get access to devnet SOL by vouching for them!
+          </div>
+          <div className="flex justify-center">
+            <a 
+              href="/vouch" 
+              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:ring-4 focus:ring-blue-300 transition-all duration-200"
+            >
+              Vouch for others
+            </a>
+          </div>
         </div>
       )}
 

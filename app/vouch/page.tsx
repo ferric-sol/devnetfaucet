@@ -10,6 +10,7 @@ interface VouchRequest {
   username: string;
   isLoading: boolean;
   message: string;
+  isWhitelisted?: boolean;
 }
 
 export default function VouchPage() {
@@ -147,6 +148,11 @@ export default function VouchPage() {
                 >
                   <div>
                     <div className="font-medium">{request.username}</div>
+                    {request.isWhitelisted && (
+                      <div className="text-xs text-green-600 dark:text-green-400 mt-1">
+                        Whitelisted User
+                      </div>
+                    )}
                     {request.message && (
                       <div 
                         className={`mt-2 text-sm ${

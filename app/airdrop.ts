@@ -165,7 +165,7 @@ async function fetchAndParseToml() {
 }
 
 // Update the checkUserHasRepo function to use the new KV storage format
-async function checkUserHasRepo(username: string) {
+export async function checkUserHasRepo(username: string) {
   try {
     console.log('Checking for repos with username:', username);
     
@@ -215,7 +215,7 @@ async function checkUserHasRepo(username: string) {
 }
 
 // Function to fetch GitHub username from GitHub API using user ID
-async function fetchGitHubUsername(userId: string) {
+export async function fetchGitHubUsername(userId: string) {
   try {
     const response = await fetch(`https://api.github.com/user/${userId}`, {
       headers: {
