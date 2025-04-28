@@ -49,16 +49,47 @@ export async function GET(request: NextRequest) {
     // Get whitelisted users
     const whitelistedUsers = await kv.get('whitelisted_users') as any[] || [];
     
-    // Combine vouch requests and whitelisted users
-    const allUsers = [
-      ...vouchRequests,
-      ...whitelistedUsers.map(user => user.username)
-    ];
+    // Get access requests to find reasons for whitelisted users
+    const accessRequests = await kv.get('access_requests') as any[] || [];
     
-    // Remove duplicates using Array.from
-    const uniqueUsers = Array.from(new Set(allUsers));
+    // Create a map of usernames to reasons from access requests
+    const reasonsMap = new Map();
+    for (const request of accessRequests) {
+      reasonsMap.set(request.username, request.reason);
+    }
     
-    return NextResponse.json(uniqueUsers);
+    // Create structured data for all users
+    const vouchRequestsData = vouchRequests.map(username => ({
+      username,
+      isWhitelisted: false,
+      reason: ''
+    }));
+    
+    const whitelistedUsersData = whitelistedUsers.map(user => ({
+      username: user.username,
+      isWhitelisted: true,
+      reason: reasonsMap.get(user.username) || 'No reason provided'
+    }));
+    
+    // Combine all users
+    const allUsers = [...vouchRequestsData, ...whitelistedUsersData];
+    
+    // Remove duplicates by username
+    const uniqueUsersMap = new Map();
+    for (const user of allUsers) {
+      if (!uniqueUsersMap.has(user.username)) {
+        uniqueUsersMap.set(user.username, user);
+      }
+    }
+    
+    // Convert map to array
+    const uniqueUsers = Array.from(uniqueUsersMap.values());
+    
+    // Return data with count
+    return NextResponse.json({
+      total: uniqueUsers.length,
+      users: uniqueUsers
+    });
   } catch (error) {
     console.error('Error in vouch-requests API:', error);
     return new NextResponse('An error occurred while processing your request', { status: 500 });

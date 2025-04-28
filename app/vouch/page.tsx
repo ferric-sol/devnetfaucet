@@ -5,20 +5,26 @@ import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Search } from 'lucide-react';
 
 interface VouchRequest {
   username: string;
   isLoading: boolean;
   message: string;
   isWhitelisted?: boolean;
+  reason?: string;
 }
 
 export default function VouchPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const [vouchRequests, setVouchRequests] = useState<VouchRequest[]>([]);
+  const [filteredRequests, setFilteredRequests] = useState<VouchRequest[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
+  const [totalUsers, setTotalUsers] = useState(0);
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -31,6 +37,21 @@ export default function VouchPage() {
     }
   }, [status, router]);
 
+  useEffect(() => {
+    if (searchQuery.trim() === '') {
+      setFilteredRequests(vouchRequests);
+    } else {
+      const query = searchQuery.toLowerCase();
+      setFilteredRequests(
+        vouchRequests.filter(
+          req => 
+            req.username.toLowerCase().includes(query) || 
+            (req.reason && req.reason.toLowerCase().includes(query))
+        )
+      );
+    }
+  }, [searchQuery, vouchRequests]);
+
   const fetchVouchRequests = async () => {
     try {
       setIsLoading(true);
@@ -41,12 +62,15 @@ export default function VouchPage() {
       }
       
       const data = await response.json();
+      setTotalUsers(data.total);
       
       setVouchRequests(
-        data.map((username: string) => ({
-          username,
+        data.users.map((user: any) => ({
+          username: user.username,
           isLoading: false,
           message: '',
+          isWhitelisted: user.isWhitelisted,
+          reason: user.reason
         }))
       );
     } catch (error: any) {
@@ -135,53 +159,75 @@ export default function VouchPage() {
         <CardHeader>
           <CardTitle>Vouch for Users</CardTitle>
           <CardDescription>
-            These users need your vouch to access SOL on devnet for testing.
+            These users need your vouch to access SOL on devnet for testing. 
+            Total users: {totalUsers}
           </CardDescription>
+
+          <div className="relative mt-4">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <Search className="h-4 w-4 text-gray-400" />
+            </div>
+            <Input
+              placeholder="Search by username or reason..."
+              className="pl-10"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
         </CardHeader>
         <CardContent>
-          {vouchRequests.length > 0 ? (
+          {filteredRequests.length > 0 ? (
             <div className="space-y-4">
-              {vouchRequests.map((request, index) => (
-                <div 
-                  key={request.username} 
-                  className="p-4 border rounded-md flex items-center justify-between"
-                >
-                  <div>
-                    <div className="font-medium">{request.username}</div>
-                    {request.isWhitelisted && (
-                      <div className="text-xs text-green-600 dark:text-green-400 mt-1">
-                        Whitelisted User
-                      </div>
-                    )}
-                    {request.message && (
-                      <div 
-                        className={`mt-2 text-sm ${
-                          request.message.includes('success') 
-                            ? 'text-green-500' 
-                            : 'text-red-500'
-                        }`}
-                      >
-                        {request.message}
-                      </div>
-                    )}
-                  </div>
-                  <Button
-                    onClick={() => handleVouch(request.username, index)}
-                    disabled={request.isLoading}
-                    variant={request.message && request.message.includes('success') ? "outline" : "default"}
+              {filteredRequests.map((request, index) => {
+                // Find the actual index in the original array
+                const originalIndex = vouchRequests.findIndex(r => r.username === request.username);
+                return (
+                  <div 
+                    key={request.username} 
+                    className="p-4 border rounded-md flex items-center justify-between"
                   >
-                    {request.isLoading 
-                      ? 'Processing...' 
-                      : (request.message && request.message.includes('success') 
-                        ? 'Vouched' 
-                        : 'Vouch')}
-                  </Button>
-                </div>
-              ))}
+                    <div className="space-y-1">
+                      <div className="font-medium">{request.username}</div>
+                      {request.isWhitelisted && (
+                        <div className="text-xs text-green-600 dark:text-green-400">
+                          Whitelisted User
+                        </div>
+                      )}
+                      {request.reason && (
+                        <div className="text-xs text-gray-600 dark:text-gray-400 max-w-lg">
+                          <span className="font-medium">Reason:</span> {request.reason}
+                        </div>
+                      )}
+                      {request.message && (
+                        <div 
+                          className={`mt-2 text-sm ${
+                            request.message.includes('success') 
+                              ? 'text-green-500' 
+                              : 'text-red-500'
+                          }`}
+                        >
+                          {request.message}
+                        </div>
+                      )}
+                    </div>
+                    <Button
+                      onClick={() => handleVouch(request.username, originalIndex)}
+                      disabled={request.isLoading}
+                      variant={request.message && request.message.includes('success') ? "outline" : "default"}
+                    >
+                      {request.isLoading 
+                        ? 'Processing...' 
+                        : (request.message && request.message.includes('success') 
+                          ? 'Vouched' 
+                          : 'Vouch')}
+                    </Button>
+                  </div>
+                );
+              })}
             </div>
           ) : (
             <p className="text-center py-8 text-gray-500">
-              No users currently need a vouch. Check back later!
+              {searchQuery ? 'No users match your search.' : 'No users currently need a vouch. Check back later!'}
             </p>
           )}
         </CardContent>

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { formatDistanceToNow } from 'date-fns';
+import { Button } from '@/components/ui/button';
 
 interface AccessRequest {
   username: string;
@@ -368,25 +369,24 @@ export default function AdminPage() {
 
         {/* Access Requests Section */}
         <div>
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4">
-            <h2 className="text-xl md:text-2xl font-semibold">Access Requests</h2>
-            <button
-              onClick={handleDedupe}
-              className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 w-full md:w-auto"
-            >
-              Deduplicate Requests
-            </button>
+          <h2 className="text-xl md:text-2xl font-semibold mb-4">Access Requests</h2>
+          <div className="mb-4 flex justify-between items-center">
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              Total Requests: {requests.length}
+            </p>
+            <Button onClick={handleDedupe} className="bg-blue-500 text-white hover:bg-blue-600">
+              Dedupe Requests
+            </Button>
           </div>
+          
           {dedupeStatus && (
-            <div className="mb-4 p-4 bg-green-100 text-green-700 rounded">
-              Deduplication complete:
-              <ul className="list-disc list-inside">
-                <li>Original requests: {dedupeStatus.originalCount}</li>
-                <li>After deduplication: {dedupeStatus.dedupedCount}</li>
-                <li>Removed duplicates: {dedupeStatus.removedCount}</li>
-              </ul>
+            <div className="mb-4 p-3 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 rounded-md">
+              <p>Original count: {dedupeStatus.originalCount}</p>
+              <p>Deduped count: {dedupeStatus.dedupedCount}</p>
+              <p>Removed: {dedupeStatus.removedCount}</p>
             </div>
           )}
+          
           <div className="bg-white dark:bg-zinc-800 rounded-lg shadow overflow-hidden">
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
@@ -489,6 +489,9 @@ export default function AdminPage() {
         {/* Whitelisted Users Section */}
         <div>
           <h2 className="text-xl md:text-2xl font-semibold mb-4">Whitelisted Users</h2>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+            Total Whitelisted Users: {whitelistedUsers.length}
+          </p>
           <div className="bg-white dark:bg-zinc-800 rounded-lg shadow overflow-hidden">
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
@@ -534,6 +537,9 @@ export default function AdminPage() {
         {/* Rejected Users Section */}
         <div>
           <h2 className="text-xl md:text-2xl font-semibold mb-4">Rejected Users</h2>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+            Total Rejected Users: {rejectedUsers.length}
+          </p>
           <div className="bg-white dark:bg-zinc-800 rounded-lg shadow overflow-hidden">
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
@@ -576,9 +582,12 @@ export default function AdminPage() {
           </div>
         </div>
 
-        {/* Recent Airdrops Section */}
-        <div>
-          <h2 className="text-xl md:text-2xl font-semibold mb-4">Recent Airdrops</h2>
+        {/* Airdrop History Section */}
+        <div className="mt-8">
+          <h2 className="text-xl md:text-2xl font-semibold mb-4">Airdrop History</h2>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+            Total Airdrops: {airdropHistory.length}
+          </p>
           <div className="bg-white dark:bg-zinc-800 rounded-lg shadow overflow-hidden">
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
@@ -628,38 +637,41 @@ export default function AdminPage() {
         </div>
 
         {/* Upgraded Users Section */}
-        <div className="mb-8">
-          <h2 className="text-xl font-bold mb-4">Upgraded Users ({upgradedUsers.length})</h2>
-          <p className="text-sm text-gray-600 mb-4">
-            These users receive {process.env.NEXT_PUBLIC_AIRDROP_AMOUNT || '20'} SOL per airdrop instead of the standard amount
+        <div className="mt-8">
+          <h2 className="text-xl md:text-2xl font-semibold mb-4">Upgraded Users</h2>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+            Total Upgraded Users: {upgradedUsers.length}
           </p>
           
-          {/* Add User Form */}
-          <form onSubmit={handleUpgradeUser} className="mb-4 p-4 bg-gray-50 rounded-lg">
-            <h3 className="font-medium mb-2">Add User to Upgraded List</h3>
-            <div className="flex flex-col sm:flex-row gap-2">
-              <input
-                type="text"
-                value={upgradeUsername}
-                onChange={(e) => setUpgradeUsername(e.target.value)}
-                placeholder="GitHub username"
-                className="flex-grow px-3 py-2 border border-gray-300 rounded-md"
-                disabled={processing}
-              />
-              <button
-                type="submit"
-                className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 disabled:bg-blue-300"
-                disabled={processing || !upgradeUsername.trim()}
-              >
-                {processing ? 'Adding...' : 'Add User'}
-              </button>
+          <div className="flex flex-col md:flex-row gap-4 items-start md:items-end mb-4">
+            <div className="w-full md:w-auto">
+              <form onSubmit={handleUpgradeUser} className="mb-4 p-4 bg-gray-50 rounded-lg">
+                <h3 className="font-medium mb-2">Add User to Upgraded List</h3>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <input
+                    type="text"
+                    value={upgradeUsername}
+                    onChange={(e) => setUpgradeUsername(e.target.value)}
+                    placeholder="GitHub username"
+                    className="flex-grow px-3 py-2 border border-gray-300 rounded-md"
+                    disabled={processing}
+                  />
+                  <button
+                    type="submit"
+                    className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 disabled:bg-blue-300"
+                    disabled={processing || !upgradeUsername.trim()}
+                  >
+                    {processing ? 'Adding...' : 'Add User'}
+                  </button>
+                </div>
+                {upgradeMessage && (
+                  <p className={`mt-2 text-sm ${upgradeMessage.type === 'success' ? 'text-green-600' : 'text-red-600'}`}>
+                    {upgradeMessage.text}
+                  </p>
+                )}
+              </form>
             </div>
-            {upgradeMessage && (
-              <p className={`mt-2 text-sm ${upgradeMessage.type === 'success' ? 'text-green-600' : 'text-red-600'}`}>
-                {upgradeMessage.text}
-              </p>
-            )}
-          </form>
+          </div>
           
           {/* Upgraded Users List */}
           {upgradedUsers.length > 0 ? (
@@ -707,8 +719,11 @@ export default function AdminPage() {
         </div>
 
         {/* Vouch Requests Section */}
-        <div>
+        <div className="mt-8">
           <h2 className="text-xl md:text-2xl font-semibold mb-4">Vouch Requests</h2>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+            Total Vouch Requests: {vouchRequests.length}
+          </p>
           <div className="bg-white dark:bg-zinc-800 rounded-lg shadow overflow-hidden">
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
@@ -761,8 +776,11 @@ export default function AdminPage() {
         </div>
 
         {/* Vouched Users Section */}
-        <div>
+        <div className="mt-8">
           <h2 className="text-xl md:text-2xl font-semibold mb-4">Vouched Users</h2>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+            Total Vouched Users: {vouchedUsers.length}
+          </p>
           <div className="bg-white dark:bg-zinc-800 rounded-lg shadow overflow-hidden">
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">

@@ -483,6 +483,16 @@ export async function vouchForUser(username: string, voucherUsername: string, vo
       console.log('Error updating vouch requests:', error);
     }
     
+    // Reset the user's airdrop cooldown timer
+    try {
+      // Delete the timestamp that tracks when they last received an airdrop
+      await kv.del(`user:${username}`);
+      console.log(`Reset airdrop cooldown timer for ${username}`);
+    } catch (error) {
+      console.log('Error resetting airdrop cooldown timer:', error);
+      // Continue even if this fails, as it's not critical
+    }
+    
     return true;
   } catch (error) {
     console.error('Failed to vouch for user:', error);
@@ -509,6 +519,10 @@ export async function unvouchUser(username: string): Promise<boolean> {
       console.log('Error updating vouched users:', error);
       return false;
     }
+    
+    // Note: We don't restore the cooldown timer when unvouching
+    // This allows the user to still use any remaining time from their vouched status
+    // If they've already used their airdrop, they'll need to wait for the normal cooldown
     
     return true;
   } catch (error) {
