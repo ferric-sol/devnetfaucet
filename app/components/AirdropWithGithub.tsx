@@ -4,7 +4,6 @@ import { useState, useEffect, useCallback } from "react";
 import { Connection, PublicKey, clusterApiUrl, LAMPORTS_PER_SOL } from '@solana/web3.js';
 import { signIn, useSession } from "next-auth/react";
 import airdrop, { requestAccess } from "@/app/airdrop";
-import RequestVouchButton from "./RequestVouchButton";
 import VouchLink from "./VouchLink";
 
 interface AirdropWithGithubProps {
@@ -300,14 +299,13 @@ export function AirdropWithGithub({ faucetAddress, airdropAmount }: AirdropWithG
                 className="w-full px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 focus:ring-4 focus:ring-purple-300 transition-all duration-200"
                 disabled={isProcessing || !accessReason.trim()}
               >
-                {isProcessing ? 'Submitting...' : 'Request Access'}
+                {isProcessing ? 'Submitting...' : 'Request Access & Create Vouch Request'}
               </button>
               
-              <div className="mt-4 border-t pt-4">
+              <div className="mt-4">
                 <div className="text-sm text-gray-700 dark:text-gray-300 mb-2">
-                  Alternatively, you can get a vouch from an existing Solana developer:
+                  After requesting access, you'll be able to share a link to get vouched by an existing Solana developer.
                 </div>
-                <RequestVouchButton />
               </div>
             </div>
           )}

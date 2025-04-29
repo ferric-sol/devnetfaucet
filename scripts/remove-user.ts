@@ -7,7 +7,7 @@ dotenv.config({ path: '.env.local' });
 import { kv } from "@vercel/kv";
 import { resetUserCooldown } from "../app/services/airdrop/cooldown-service";
 import { safeKvGet, safeKvSet } from "../app/services/storage/kv-storage";
-import { AirdropRecord, VouchRecord, WhitelistedUser, UpgradedUser } from "../app/models/types";
+import { AirdropRecord, VouchRecord, WhitelistedUser, UpgradedUser, AccessRequest } from "../app/models/types";
 
 /**
  * Script to completely remove a user for testing
@@ -20,6 +20,8 @@ import { AirdropRecord, VouchRecord, WhitelistedUser, UpgradedUser } from "../ap
  * 3. Remove the user from whitelist
  * 4. Remove the user from upgraded users
  * 5. Remove the user from airdrop history
+ * 6. Remove the user from vouch requests
+ * 7. Remove the user from pending whitelist requests (access_requests)
  */
 
 async function removeUser(username: string) {
@@ -82,6 +84,16 @@ async function removeUser(username: string) {
     console.log(`✅ Removed from vouch requests (${vouchRequests.length - updatedRequests.length} records)`);
   } catch (error) {
     console.error("❌ Error removing from vouch requests:", error);
+  }
+  
+  // 7. Remove from pending whitelist requests (access_requests)
+  try {
+    const accessRequests = await safeKvGet<AccessRequest[]>('access_requests') || [];
+    const updatedAccessRequests = accessRequests.filter(req => req.username !== username);
+    await safeKvSet('access_requests', updatedAccessRequests);
+    console.log(`✅ Removed from pending whitelist requests (${accessRequests.length - updatedAccessRequests.length} records)`);
+  } catch (error) {
+    console.error("❌ Error removing from pending whitelist requests:", error);
   }
   
   console.log("✅ User completely removed from the system");

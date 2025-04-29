@@ -489,7 +489,8 @@ export default function AdminPage() {
           )}
           
           <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
-            This will completely remove a user from the system, including cooldowns, vouched status, whitelist status, and airdrop history.
+            This will completely remove a user from the system, including cooldowns, vouched status, whitelist status, 
+            pending whitelist requests, vouch requests, and airdrop history.
             Use this for testing purposes only.
           </p>
         </div>

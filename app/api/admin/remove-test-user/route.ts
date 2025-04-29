@@ -5,7 +5,7 @@ import { getToken } from 'next-auth/jwt';
 import { cookies } from 'next/headers';
 import { resetUserCooldown } from "@/app/services/airdrop/cooldown-service";
 import { safeKvGet, safeKvSet } from "@/app/services/storage/kv-storage";
-import { AirdropRecord, VouchRecord, WhitelistedUser, UpgradedUser } from "@/app/models/types";
+import { AirdropRecord, VouchRecord, WhitelistedUser, UpgradedUser, AccessRequest } from "@/app/models/types";
 import { fetchGitHubUsername } from '@/app/services/github/github-service';
 
 // Admin-only API endpoint to remove a user for testing purposes
@@ -78,6 +78,11 @@ export async function POST(request: NextRequest) {
     const updatedRequests = vouchRequests.filter(req => req !== username);
     await safeKvSet('vouch_requests', updatedRequests);
     
+    // 7. Remove from pending whitelist requests (access_requests)
+    const accessRequests = await safeKvGet<AccessRequest[]>('access_requests') || [];
+    const updatedAccessRequests = accessRequests.filter(req => req.username !== username);
+    await safeKvSet('access_requests', updatedAccessRequests);
+    
     // Return success
     return NextResponse.json({
       success: true,
@@ -87,7 +92,8 @@ export async function POST(request: NextRequest) {
         whitelistedUsers: whitelistedUsers.length - updatedWhitelist.length,
         upgradedUsers: upgradedUsers.length - updatedUpgraded.length,
         airdropHistory: history.length - updatedHistory.length,
-        vouchRequests: vouchRequests.length - updatedRequests.length
+        vouchRequests: vouchRequests.length - updatedRequests.length,
+        accessRequests: accessRequests.length - updatedAccessRequests.length
       }
     });
   } catch (error: any) {
