@@ -8,6 +8,7 @@ import { parse as parseTOML } from '@iarna/toml';
 import { authOptions } from './lib/auth';
 import { getToken } from "next-auth/jwt";
 import { cookies } from "next/headers";
+import { getUserCooldownExpiry, isUserInCooldown, setUserCooldown, resetUserCooldown, getCooldownRemainingTime } from './services/airdrop/cooldown-service';
 
 interface Repository {
   url: string;
@@ -306,9 +307,11 @@ async function performAirdrop(
       
       console.log('Custom RPC transaction successful with signature:', signature);
 
-      // Store the timestamp using the GitHub username as the key
+      // Store the timestamp using the cooldown service
       const now = Date.now();
-      await safeKvSet(`user:${githubUsername}`, now);
+      // Set cooldown duration based on upgraded status
+      const cooldownDuration = isUpgraded ? 12 * 60 * 60 * 1000 : (Number(process.env.TIMEOUT_HOURS) || 24) * 60 * 60 * 1000;
+      await setUserCooldown(githubUsername, cooldownDuration);
       
       // Store airdrop record
       await storeAirdropRecord({
@@ -333,6 +336,10 @@ async function performAirdrop(
       
       const secretKey = process.env.SENDER_SECRET_KEY;
       if(!secretKey) return 'Missing sender key';
+
+      // Check if user is in the upgraded users list
+      const upgradedUsers = await kv.get('upgraded_users') as any[] || [];
+      const isUpgraded = upgradedUsers.some(user => user.username === githubUsername.toLowerCase());
 
       // Determine airdrop amount based on user status
       const airdropAmount = isWhitelisted 
@@ -362,9 +369,11 @@ async function performAirdrop(
       
       console.log('Fallback RPC transaction successful with signature:', signature);
 
-      // Store the timestamp using the GitHub username as the key
+      // Store the timestamp using the cooldown service
       const now = Date.now();
-      await safeKvSet(`user:${githubUsername}`, now);
+      // Set cooldown duration based on upgraded status
+      const cooldownDuration = isUpgraded ? 12 * 60 * 60 * 1000 : (Number(process.env.TIMEOUT_HOURS) || 24) * 60 * 60 * 1000;
+      await setUserCooldown(githubUsername, cooldownDuration);
       
       // Store airdrop record
       await storeAirdropRecord({
@@ -472,21 +481,10 @@ export async function vouchForUser(username: string, voucherUsername: string, vo
       return false;
     }
     
-    // Remove from vouch requests
-    try {
-      const vouchRequests = await kv.get('vouch_requests') as string[] | null;
-      if (vouchRequests) {
-        const updatedRequests = vouchRequests.filter(req => req !== username);
-        await kv.set('vouch_requests', updatedRequests);
-      }
-    } catch (error) {
-      console.log('Error updating vouch requests:', error);
-    }
-    
     // Reset the user's airdrop cooldown timer
     try {
-      // Delete the timestamp that tracks when they last received an airdrop
-      await kv.del(`user:${username}`);
+      // Use the cooldown service to reset the cooldown
+      await resetUserCooldown(username);
       console.log(`Reset airdrop cooldown timer for ${username}`);
     } catch (error) {
       console.log('Error resetting airdrop cooldown timer:', error);
@@ -691,19 +689,18 @@ export default async function airdrop(formData: FormData) {
   }
 
   // Check if this GitHub user has received an airdrop recently
-  const lastAirdropTimestampString = await safeKvGet(`user:${githubUsername}`);
-  const lastAirdropTimestamp = lastAirdropTimestampString ? parseInt(lastAirdropTimestampString) : null;
-
+  const isInCooldown = await isUserInCooldown(githubUsername);
+  
   // Check if user is in the upgraded users list
   const upgradedUsers = await kv.get('upgraded_users') as any[] || [];
   const isUpgraded = upgradedUsers.some(user => user.username === githubUsername.toLowerCase());
 
   // Upgraded users get a shorter timeout
   const TIMEOUT_HOURS = isUpgraded ? 12 : (Number(process.env.TIMEOUT_HOURS) || 24);
-  const oneHourAgo = Date.now() - TIMEOUT_HOURS * 60 * 60 * 1000;
-
-  if (lastAirdropTimestamp && lastAirdropTimestamp > oneHourAgo) {
-    const minutesLeft = Math.ceil((lastAirdropTimestamp - oneHourAgo) / 60000);
+  
+  if (isInCooldown) {
+    const remainingTime = await getCooldownRemainingTime(githubUsername);
+    const minutesLeft = Math.ceil(remainingTime / 60000);
     return `Try again in ${minutesLeft} minutes`;
   }
 
