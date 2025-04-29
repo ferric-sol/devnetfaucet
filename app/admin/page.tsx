@@ -61,6 +61,8 @@ export default function AdminPage() {
     dedupedCount: number;
     removedCount: number;
   } | null>(null);
+  const [testUserToRemove, setTestUserToRemove] = useState('');
+  const [removeUserMessage, setRemoveUserMessage] = useState<{type: 'success' | 'error', text: string} | null>(null);
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -344,6 +346,96 @@ export default function AdminPage() {
     }
   };
 
+  const handleRemoveTestUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!testUserToRemove.trim()) return;
+    
+    setProcessing(true);
+    setRemoveUserMessage(null);
+    
+    try {
+      const res = await fetch('/api/admin/remove-test-user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: testUserToRemove.trim() })
+      });
+      
+      const data = await res.json();
+      
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to remove test user');
+      }
+      
+      setRemoveUserMessage({ 
+        type: 'success', 
+        text: `User ${testUserToRemove} successfully removed. Records removed: ${
+          Object.entries(data.removedRecords)
+            .map(([key, value]) => `${key}: ${value}`)
+            .join(', ')
+        }` 
+      });
+      setTestUserToRemove('');
+      
+      // Refresh all data
+      const [
+        requestsRes, 
+        whitelistedRes, 
+        historyRes, 
+        rejectedRes, 
+        upgradedRes,
+        vouchRequestsRes,
+        vouchedUsersRes
+      ] = await Promise.all([
+        fetch('/api/admin/access-requests'),
+        fetch('/api/admin/whitelisted-users'),
+        fetch('/api/admin/airdrop-history'),
+        fetch('/api/admin/rejected-users'),
+        fetch('/api/admin/upgraded-users'),
+        fetch('/api/admin/vouch-requests'),
+        fetch('/api/admin/vouched-users')
+      ]);
+
+      if (requestsRes.ok && whitelistedRes.ok && historyRes.ok && 
+          rejectedRes.ok && upgradedRes.ok && vouchRequestsRes.ok && 
+          vouchedUsersRes.ok) {
+        
+        const [
+          requestsData, 
+          whitelistedData, 
+          historyData, 
+          rejectedData, 
+          upgradedData,
+          vouchRequestsData,
+          vouchedUsersData
+        ] = await Promise.all([
+          requestsRes.json(),
+          whitelistedRes.json(),
+          historyRes.json(),
+          rejectedRes.json(),
+          upgradedRes.json(),
+          vouchRequestsRes.json(),
+          vouchedUsersRes.json()
+        ]);
+
+        setRequests(requestsData);
+        setWhitelistedUsers(whitelistedData);
+        setAirdropHistory(historyData);
+        setRejectedUsers(rejectedData);
+        setUpgradedUsers(upgradedData);
+        setVouchRequests(vouchRequestsData);
+        setVouchedUsers(vouchedUsersData);
+      }
+    } catch (error) {
+      console.error('Error removing test user:', error);
+      setRemoveUserMessage({ 
+        type: 'error', 
+        text: error instanceof Error ? error.message : 'An error occurred' 
+      });
+    } finally {
+      setProcessing(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen p-4 flex items-center justify-center">
@@ -366,6 +458,41 @@ export default function AdminPage() {
     <div className="min-h-screen p-4 md:p-8">
       <div className="max-w-6xl mx-auto space-y-8">
         <h1 className="text-2xl md:text-3xl font-bold">Admin Dashboard</h1>
+
+        {/* Add remove test user section before other content */}
+        <div className="mb-8 p-4 border rounded-lg bg-white dark:bg-gray-800">
+          <h2 className="text-xl font-semibold mb-4">Remove Test User</h2>
+          <form onSubmit={handleRemoveTestUser} className="mb-4">
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={testUserToRemove}
+                onChange={(e) => setTestUserToRemove(e.target.value)}
+                placeholder="GitHub username to remove"
+                className="flex-1 p-2 border rounded"
+                disabled={processing}
+              />
+              <Button type="submit" disabled={processing || !testUserToRemove.trim()}>
+                {processing ? 'Removing...' : 'Remove User'}
+              </Button>
+            </div>
+          </form>
+          
+          {removeUserMessage && (
+            <div className={`p-3 rounded ${
+              removeUserMessage.type === 'success' 
+                ? 'bg-green-100 text-green-800 dark:bg-green-800/30 dark:text-green-300' 
+                : 'bg-red-100 text-red-800 dark:bg-red-800/30 dark:text-red-300'
+            }`}>
+              {removeUserMessage.text}
+            </div>
+          )}
+          
+          <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
+            This will completely remove a user from the system, including cooldowns, vouched status, whitelist status, and airdrop history.
+            Use this for testing purposes only.
+          </p>
+        </div>
 
         {/* Access Requests Section */}
         <div>

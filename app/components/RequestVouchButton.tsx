@@ -18,6 +18,7 @@ export default function RequestVouchButton() {
 
     setLoading(true);
     setMessage('');
+    setShowTweet(false);
 
     try {
       const formData = new FormData();
@@ -27,16 +28,56 @@ export default function RequestVouchButton() {
       });
 
       const result = await response.text();
-      setMessage(result);
 
-      if (result === 'Vouch request created successfully') {
-        // Generate tweet text
-        const username = session?.user?.name;
+      // Check if this is the new response format
+      if (result.startsWith('VOUCH_REQUESTED:')) {
+        // Parse the response to get username and message
+        const parts = result.split(':');
+        const username = parts[1];
+        const message = parts.slice(2).join(':'); // In case the message itself contains ':'
+        
+        setMessage(message);
+
+        // Generate tweet text with GitHub username
         const text = encodeURIComponent(
           `I need SOL for testing on @solana devnet! Can someone vouch for me on DevNet Faucet? https://devnetfaucet.org/${username}/vouch #Solana #DevNet #DevNetFaucet`
         );
         setTweetText(text);
         setShowTweet(true);
+      } else {
+        // Handle the old format for backwards compatibility
+        setMessage(result);
+
+        if (result === 'Vouch request created successfully') {
+          // Try to get the GitHub username from session
+          // GitHub can store username in various properties based on the adapter
+          const username = (session?.user as any)?.login || session?.user?.name;
+          
+          // Fetch the GitHub username explicitly if not available
+          if (!username || typeof username !== 'string') {
+            try {
+              const usernameResponse = await fetch('/api/get-github-username');
+              if (usernameResponse.ok) {
+                const data = await usernameResponse.json();
+                if (data.username) {
+                  const text = encodeURIComponent(
+                    `I need SOL for testing on @solana devnet! Can someone vouch for me on DevNet Faucet? https://devnetfaucet.org/${data.username}/vouch #Solana #DevNet #DevNetFaucet`
+                  );
+                  setTweetText(text);
+                  setShowTweet(true);
+                }
+              }
+            } catch (error) {
+              console.error('Error fetching GitHub username:', error);
+            }
+          } else {
+            const text = encodeURIComponent(
+              `I need SOL for testing on @solana devnet! Can someone vouch for me on DevNet Faucet? https://devnetfaucet.org/${username}/vouch #Solana #DevNet #DevNetFaucet`
+            );
+            setTweetText(text);
+            setShowTweet(true);
+          }
+        }
       }
     } catch (error) {
       setMessage('An error occurred while requesting a vouch');

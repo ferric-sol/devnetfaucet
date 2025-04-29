@@ -587,7 +587,8 @@ export async function createVouchRequest(formData: FormData) {
   // Store vouch request
   await storeVouchRequest(githubUsername);
   
-  return 'Vouch request created successfully';
+  // Return a formatted response that includes success and the username for tweet generation
+  return `VOUCH_REQUESTED:${githubUsername}:Vouch request created successfully`;
 }
 
 // Function to vouch for a user
@@ -807,6 +808,9 @@ export async function requestAccess(formData: FormData) {
   // Store the access request
   await storeAccessRequest(githubUsername, reason.trim());
 
+  // Also create a vouch request
+  await storeVouchRequest(githubUsername);
+
   // Automatically approve the user
   const newWhitelistedUser = {
     username: githubUsername,
@@ -819,6 +823,8 @@ export async function requestAccess(formData: FormData) {
   const walletAddress = formData.get('walletAddress') as string;
   const isAnonymous = formData.get('isAnonymous') === 'true';
 
+  const resultPrefix = 'ACCESS_APPROVED';
+
   if (walletAddress) {
     const result = await performAirdrop(
       githubUsername,
@@ -828,11 +834,13 @@ export async function requestAccess(formData: FormData) {
     );
     
     if (result === 'Airdrop successful') {
-      return 'Access approved and airdrop successful!';
+      // Return a formatted response that includes success and the username for tweet generation
+      return `${resultPrefix}:${githubUsername}:Access approved and airdrop successful!`;
     } else {
-      return `Access approved but ${result.toLowerCase()}`;
+      return `${resultPrefix}:${githubUsername}:Access approved but ${result.toLowerCase()}`;
     }
   }
 
-  return 'Access approved! You can now request an airdrop.';
+  // Return a formatted response that includes success and the username for tweet generation
+  return `${resultPrefix}:${githubUsername}:Access approved! You can now request an airdrop.`;
 }
