@@ -616,15 +616,19 @@ export async function vouchForUserAction(formData: FormData) {
     return 'Unable to verify GitHub account';
   }
 
-  // Check if voucher is eligible (has repo in Solana ecosystem or is upgraded)
+  // Check if voucher is eligible (has repo in Solana ecosystem, is upgraded, or is vouched)
   const hasRepo = await checkUserHasRepo(githubUsername);
   
   // Check if user is upgraded
   const upgradedUsers = await kv.get('upgraded_users') as any[] || [];
   const isUpgraded = upgradedUsers.some(user => user.username.toLowerCase() === githubUsername.toLowerCase());
   
-  if (!hasRepo && !isUpgraded) {
-    return 'You are not eligible to vouch for others';
+  // Check if the user is vouched
+  const isVouched = await isUserVouched(githubUsername);
+  
+  // User is eligible if they have a repo, are upgraded, or are vouched
+  if (!hasRepo && !isUpgraded && !isVouched) {
+    return 'You need to be vouched for before you can vouch for others';
   }
   
   // Get the username to vouch for

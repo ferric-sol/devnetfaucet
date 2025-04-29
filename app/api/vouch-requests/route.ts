@@ -4,7 +4,7 @@ import { authOptions } from '@/app/lib/auth';
 import { getToken } from "next-auth/jwt";
 import { cookies } from "next/headers";
 import { kv } from "@vercel/kv";
-import { fetchGitHubUsername, checkUserHasRepo } from '@/app/airdrop';
+import { fetchGitHubUsername, checkUserHasRepo, isUserVouched } from '@/app/airdrop';
 
 export async function GET(request: NextRequest) {
   try {
@@ -38,9 +38,18 @@ export async function GET(request: NextRequest) {
     const upgradedUsers = await kv.get('upgraded_users') as any[] || [];
     const isUpgraded = upgradedUsers.some(user => user.username.toLowerCase() === githubUsername.toLowerCase());
     
-    // Only authenticated users with repos in the Solana ecosystem or who are upgraded can see vouch requests
-    if (!hasRepo && !isUpgraded) {
-      return new NextResponse('Unauthorized', { status: 401 });
+    // Check if user is vouched
+    const isVouched = await isUserVouched(githubUsername);
+    
+    // Allow access if user has a repo, is upgraded, or is vouched
+    const canAccess = hasRepo || isUpgraded || isVouched;
+    
+    // If user doesn't meet any criteria, return a specific error message for the frontend
+    if (!canAccess) {
+      return NextResponse.json({ 
+        error: 'Not eligible',
+        message: 'You need to be vouched for before you can vouch for others'
+      }, { status: 403 });
     }
     
     // Get the vouch requests

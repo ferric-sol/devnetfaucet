@@ -58,6 +58,13 @@ export default function VouchPage() {
       const response = await fetch('/api/vouch-requests');
       
       if (!response.ok) {
+        // Check if this is the "not eligible" error
+        if (response.status === 403) {
+          const errorData = await response.json();
+          if (errorData.error === 'Not eligible') {
+            throw new Error(errorData.message || 'You need to be vouched for before you can vouch for others');
+          }
+        }
         throw new Error('Failed to fetch vouch requests');
       }
       
@@ -142,11 +149,20 @@ export default function VouchPage() {
       <div className="container mx-auto py-8">
         <Card className="max-w-4xl mx-auto">
           <CardHeader>
-            <CardTitle>Error</CardTitle>
+            <CardTitle>Not Eligible to Vouch</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-red-500">{error}</p>
-            <Button onClick={fetchVouchRequests} className="mt-4">Try Again</Button>
+            <p className="text-amber-500 dark:text-amber-400 mb-4">{error}</p>
+            <p className="mb-4">You need to be either:</p>
+            <ul className="list-disc pl-5 mb-6 space-y-2">
+              <li>A contributor to a Solana ecosystem project</li>
+              <li>Vouched for by another user</li>
+              <li>An upgraded user</li>
+            </ul>
+            <div className="flex gap-4">
+              <Button onClick={() => router.push('/')}>Return Home</Button>
+              <Button onClick={fetchVouchRequests} variant="outline">Try Again</Button>
+            </div>
           </CardContent>
         </Card>
       </div>
