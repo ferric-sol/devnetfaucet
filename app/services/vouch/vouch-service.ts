@@ -128,7 +128,9 @@ export async function unvouchUser(username: string): Promise<boolean> {
  */
 export async function getVouchedUsers(): Promise<VouchRecord[]> {
   try {
-    return await safeKvGet<VouchRecord[]>('vouched_users') || [];
+    const vouchedUsers = await safeKvGet<VouchRecord[]>('vouched_users') || [];
+    // Sort by timestamp in descending order (latest first)
+    return [...vouchedUsers].sort((a, b) => b.timestamp - a.timestamp);
   } catch (error) {
     console.log('Error getting vouched users:', error);
     return [];

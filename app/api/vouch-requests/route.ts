@@ -52,38 +52,54 @@ export async function GET(request: NextRequest) {
     // Get access requests to find reasons for whitelisted users
     const accessRequests = await kv.get('access_requests') as any[] || [];
     
-    // Create a map of usernames to reasons from access requests
-    const reasonsMap = new Map();
+    // Create a map of usernames to reasons and timestamps from access requests
+    const requestsMap = new Map();
     for (const request of accessRequests) {
-      reasonsMap.set(request.username, request.reason);
+      requestsMap.set(request.username, {
+        reason: request.reason,
+        timestamp: request.timestamp
+      });
     }
     
     // Create structured data for all users
     const vouchRequestsData = vouchRequests.map(username => ({
       username,
       isWhitelisted: false,
-      reason: ''
+      reason: '',
+      timestamp: 0 // Default timestamp for sorting
     }));
     
-    const whitelistedUsersData = whitelistedUsers.map(user => ({
-      username: user.username,
-      isWhitelisted: true,
-      reason: reasonsMap.get(user.username) || 'No reason provided'
-    }));
+    const whitelistedUsersData = whitelistedUsers.map(user => {
+      const requestInfo = requestsMap.get(user.username) || { reason: 'No reason provided', timestamp: user.approvedAt || Date.now() };
+      return {
+        username: user.username,
+        isWhitelisted: true,
+        reason: requestInfo.reason,
+        timestamp: requestInfo.timestamp
+      };
+    });
     
     // Combine all users
     const allUsers = [...vouchRequestsData, ...whitelistedUsersData];
     
-    // Remove duplicates by username
+    // Remove duplicates by username and keep the entry with the highest timestamp
     const uniqueUsersMap = new Map();
     for (const user of allUsers) {
-      if (!uniqueUsersMap.has(user.username)) {
+      if (!uniqueUsersMap.has(user.username) || 
+          user.timestamp > uniqueUsersMap.get(user.username).timestamp) {
         uniqueUsersMap.set(user.username, user);
       }
     }
     
-    // Convert map to array
-    const uniqueUsers = Array.from(uniqueUsersMap.values());
+    // Convert map to array and sort by timestamp in descending order (latest first)
+    const uniqueUsers = Array.from(uniqueUsersMap.values())
+      .sort((a, b) => {
+        // First prioritize whitelisted users
+        if (a.isWhitelisted && !b.isWhitelisted) return -1;
+        if (!a.isWhitelisted && b.isWhitelisted) return 1;
+        // Then sort by timestamp (newest first)
+        return b.timestamp - a.timestamp;
+      });
     
     // Return data with count
     return NextResponse.json({

@@ -14,7 +14,9 @@ export async function GET() {
 
   try {
     const vouchedUsers = await kv.get('vouched_users') as VouchRecord[] || [];
-    return NextResponse.json(vouchedUsers);
+    // Sort by timestamp in descending order (latest first)
+    const sortedVouchedUsers = [...vouchedUsers].sort((a, b) => b.timestamp - a.timestamp);
+    return NextResponse.json(sortedVouchedUsers);
   } catch (error) {
     console.error('Error fetching vouched users:', error);
     return new NextResponse('Internal Server Error', { status: 500 });
