@@ -304,7 +304,7 @@ export function AirdropWithGithub({ faucetAddress, airdropAmount }: AirdropWithG
               
               <div className="mt-4">
                 <div className="text-sm text-gray-700 dark:text-gray-300 mb-2">
-                  After requesting access, you'll be able to share a link to get vouched by an existing Solana developer.
+                  After requesting access, you&apos;ll be able to share a link to get vouched by an existing Solana developer.
                 </div>
               </div>
             </div>
