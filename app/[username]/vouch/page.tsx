@@ -94,7 +94,7 @@ export default function UserVouchPage({ params }: { params: { username: string }
 
           {!session && (
             <div className="mt-6">
-              <p className="text-sm text-gray-500 mb-2">Are you {username}? Share this tweet to ask for a vouch:</p>
+              <p className="text-sm text-gray-500 mb-2">Are you {username}? Share this tweet to ask for a vouch and receive 20 SOL:</p>
               <a 
                 href={`https://twitter.com/intent/tweet?text=${tweetText}`} 
                 target="_blank" 

@@ -839,7 +839,7 @@ export async function requestAccess(formData: FormData) {
     
     if (result === 'Airdrop successful') {
       // Return a formatted response that includes success and the username for tweet generation
-      return `${resultPrefix}:${githubUsername}:Access approved and airdrop successful!`;
+      return `${resultPrefix}:${githubUsername}:Access approved and 2 SOL airdrop successful!`;
     } else {
       return `${resultPrefix}:${githubUsername}:Access approved but ${result.toLowerCase()}`;
     }
