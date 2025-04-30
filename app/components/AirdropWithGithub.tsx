@@ -248,7 +248,7 @@ export function AirdropWithGithub({ faucetAddress, airdropAmount }: AirdropWithG
           {showTweetPrompt && (
             <div className="mt-4 p-3 rounded-md bg-blue-100 text-blue-800 dark:bg-blue-800/30 dark:text-blue-300">
               <p className="font-medium mb-2">
-                Share this tweet to get someone to vouch for you:
+                Share this tweet to get someone to vouch for you and receive 20 SOL:
               </p>
               <a 
                 href={`https://twitter.com/intent/tweet?text=${tweetText}`}
