@@ -268,7 +268,7 @@ async function performAirdrop(
 
     // Determine airdrop amount based on user status
     let airdropAmount: number;
-    if (isUpgraded) {
+    if (isUpgraded || await isUserVouched(githubUsername)) {
       // Upgraded users get the full AIRDROP_AMOUNT regardless of whitelist status
       airdropAmount = Number(process.env.NEXT_PUBLIC_AIRDROP_AMOUNT || 20);
       console.log(`User ${githubUsername} is upgraded, giving full amount: ${airdropAmount}`);
