@@ -3,7 +3,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { AirdropWithGithub } from './components/AirdropWithGithub';
 import { getServerSession } from "next-auth/next";
 import { authOptions } from './lib/auth';
-import { RPCBanner } from './components/RPCBanner';
+// import { RPCBanner } from './components/RPCBanner';
 
 // Component to display recent airdrops
 function RecentAirdrops({ airdrops }: { airdrops: AirdropRecord[] }) {
@@ -69,7 +69,7 @@ export default async function Home() {
   return (
     <main className="relative min-h-screen flex flex-col items-center justify-between p-0 bg-gradient-to-b from-white to-gray-100 dark:from-gray-900 dark:to-black">
       {/* Add the RPC Banner at the top */}
-      <RPCBanner />
+      {/* <RPCBanner /> */}
       
       <div className="w-full px-4 lg:px-24 py-4 lg:py-24 flex flex-col items-center">
         {/* Decorative elements */}

@@ -287,12 +287,6 @@ export function AirdropWithGithub({ faucetAddress, airdropAmount }: AirdropWithG
                   rows={3}
                   required
                 />
-                <div className="mt-2 text-xs text-gray-500 dark:text-gray-400 overflow-x-auto pb-1">
-                  <span>Need to use our new RPC? Include: </span>
-                  <code className="bg-gray-100 dark:bg-gray-700 px-1 py-0.5 rounded whitespace-nowrap">
-                    http://rpc.devnetfaucet.org:8899/
-                  </code>
-                </div>
               </div>
               <button
                 onClick={handleRequestAccess}

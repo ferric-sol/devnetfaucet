@@ -16,6 +16,7 @@
     "@upstash/ratelimit": "^1.0.1",
     "@vercel/analytics": "^1.5.0",
     "@vercel/kv": "^1.0.1",
+    "bs58": "^6.0.0",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.0",
     "date-fns": "^4.1.0",
@@ -30,7 +31,7 @@
     "tailwindcss-animate": "^1.0.7"
   },
   "devDependencies": {
-    "@solana/web3.js": "^1.90.2",
+    "@solana/web3.js": "^1.98.2",
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",
