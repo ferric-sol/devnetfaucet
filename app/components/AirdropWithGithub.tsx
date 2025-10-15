@@ -322,9 +322,15 @@ export function AirdropWithGithub({ faucetAddress, airdropAmount }: AirdropWithG
         </div>
       )}
 
-      <div className="flex flex-col items-center space-y-2 text-sm opacity-80">
-        <p>Send donations to: <span className="font-mono">{faucetAddress}</span></p>
-        <p>Current faucet balance: <span className="font-bold">{faucetBalance}</span></p>
+      <div className="flex flex-col items-center space-y-2 text-xs sm:text-sm opacity-80 px-2">
+        <p className="text-center">
+          Send donations to: 
+          <span className="font-mono block sm:inline break-all sm:break-normal mt-1 sm:mt-0">{faucetAddress}</span>
+        </p>
+        <p className="text-center">
+          Current faucet balance: 
+          <span className="font-bold">{faucetBalance}</span>
+        </p>
       </div>
     </div>
   );
