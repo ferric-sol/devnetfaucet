@@ -259,6 +259,21 @@ async function performAirdrop(
       return 'Invalid Solana wallet address format';
     }
 
+    // Check if destination address already has more than 20 SOL
+    try {
+      const destinationPublicKey = new PublicKey(walletAddressString);
+      const balance = await connection.getBalance(destinationPublicKey);
+      const balanceInSol = balance / LAMPORTS_PER_SOL;
+      
+      if (balanceInSol > 20) {
+        console.log(`Address ${walletAddressString} already has ${balanceInSol} SOL, skipping airdrop`);
+        return 'Wallet already has more than 20 SOL';
+      }
+    } catch (error) {
+      console.log('Error checking wallet balance:', error);
+      // Continue with airdrop if balance check fails
+    }
+
     const secretKey = process.env.SENDER_SECRET_KEY;
     if(!secretKey) return 'Missing sender key';
 
