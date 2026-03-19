@@ -291,7 +291,7 @@ async function performAirdrop(
       // Whitelisted but not upgraded users get the WHITELIST_AIRDROP_AMOUNT
       // airdropAmount = Number(process.env.NEXT_PUBLIC_WHITELIST_AIRDROP_AMOUNT || 1);
       // console.log(`User ${githubUsername} is whitelisted, giving: ${airdropAmount}`);
-      return 'Airdrop failed - ask for whitelist on discord'
+      return 'Airdrop failed'
     } else {
       // Regular users with GitHub repos in the Solana ecosystem
       airdropAmount = Number(process.env.NEXT_PUBLIC_AIRDROP_AMOUNT || 20);
