@@ -14,7 +14,6 @@
 import { kv } from "@vercel/kv";
 import * as fs from 'fs';
 import * as path from 'path';
-import fetch from 'node-fetch';
 import dotenv from 'dotenv';
 
 // Load environment variables from .env.local file

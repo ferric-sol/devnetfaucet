@@ -2,26 +2,21 @@
 
 import { useState } from 'react';
 import { useSession } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { VouchRecord } from '@/app/airdrop';
 
-export default function UserVouchPage({ params }: { params: { username: string } }) {
-  const { username } = params;
+export default function UserVouchPage() {
+  const params = useParams<{ username: string }>();
+  const username = params.username;
   const { data: session, status } = useSession();
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState('');
-  const [tweetText, setTweetText] = useState('');
-
-  // Generate tweet text when component mounts
-  useState(() => {
-    const text = encodeURIComponent(
-      `I need SOL for testing on @solana devnet! Can someone vouch for me on DevNet Faucet? https://devnetfaucet.org/${username}/vouch #Solana #DevNet #DevNetFaucet`
-    );
-    setTweetText(text);
-  });
+  const tweetText = encodeURIComponent(
+    `I need SOL for testing on @solana devnet! Can someone vouch for me on DevNet Faucet? https://devnetfaucet.org/${username}/vouch #Solana #DevNet #DevNetFaucet`
+  );
 
   const handleVouch = async () => {
     if (!session) {

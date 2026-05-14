@@ -13,17 +13,26 @@ export const config = {
   matcher: '/',
 };
 
+function getRequestIp(request: NextRequest) {
+  const forwardedFor = request.headers.get('x-forwarded-for');
+  if (forwardedFor) {
+    return forwardedFor.split(',')[0]?.trim() || '127.0.0.1';
+  }
+
+  return request.headers.get('x-real-ip') ?? '127.0.0.1';
+}
+
 export default async function middleware(request: NextRequest) {
   if(request.method === 'GET') {
     // You could alternatively limit based on user ID or similar
-    const ip = request.ip ?? '127.0.0.1';
+    const ip = getRequestIp(request);
     await kv.incr(`ip_${ip}`);
     const request_num = await kv.get(`ip_${ip}`);
     console.log(`ip: ${ip} request_num: ${request_num}`);
-    NextResponse.next()
+    return NextResponse.next();
   } else {
     // You could alternatively limit based on user ID or similar
-    const ip = request.ip ?? '127.0.0.1';
+    const ip = getRequestIp(request);
     await kv.incr(`ip_${ip}`);
     const request_num = await kv.get(`ip_${ip}`);
     const { success, pending, limit, reset, remaining } = await ratelimit.limit(
