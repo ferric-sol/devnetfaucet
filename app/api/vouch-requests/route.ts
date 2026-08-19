@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
     // Get the session and token to verify the user is authenticated
     const session = await getServerSession(authOptions);
     const token = await getToken({ 
-      req: { cookies: cookies() } as any,
+      req: { cookies: await cookies() } as any,
       secret: process.env.NEXTAUTH_SECRET
     });
     
@@ -119,4 +119,4 @@ export async function GET(request: NextRequest) {
     console.error('Error in vouch-requests API:', error);
     return new NextResponse('An error occurred while processing your request', { status: 500 });
   }
-} 
+}

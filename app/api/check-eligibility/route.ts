@@ -64,7 +64,7 @@ export async function GET() {
     // Get the session and token to verify the user is authenticated
     const session = await getServerSession(authOptions);
     const token = await getToken({ 
-      req: { cookies: cookies() } as any,
+      req: { cookies: await cookies() } as any,
       secret: process.env.NEXTAUTH_SECRET
     });
     
@@ -99,4 +99,4 @@ export async function GET() {
     console.error('Error checking eligibility:', error);
     return NextResponse.json({ isEligible: false });
   }
-} 
+}

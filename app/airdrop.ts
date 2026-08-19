@@ -567,7 +567,7 @@ export async function createVouchRequest(formData: FormData) {
   }
   
   const token = await getToken({ 
-    req: { cookies: cookies() } as any,
+    req: { cookies: await cookies() } as any,
     secret: process.env.NEXTAUTH_SECRET
   });
   
@@ -618,7 +618,7 @@ export async function vouchForUserAction(formData: FormData) {
   }
   
   const token = await getToken({ 
-    req: { cookies: cookies() } as any,
+    req: { cookies: await cookies() } as any,
     secret: process.env.NEXTAUTH_SECRET
   });
   
@@ -673,7 +673,7 @@ export default async function airdrop(formData: FormData) {
   // Get both session and token
   const session = await getServerSession(authOptions);
   const token = await getToken({ 
-    req: { cookies: cookies() } as any,
+    req: { cookies: await cookies() } as any,
     secret: process.env.NEXTAUTH_SECRET
   });
   
@@ -789,7 +789,7 @@ export async function requestAccess(formData: FormData) {
 
   const session = await getServerSession(authOptions);
   const token = await getToken({ 
-    req: { cookies: cookies() } as any,
+    req: { cookies: await cookies() } as any,
     secret: process.env.NEXTAUTH_SECRET
   });
   

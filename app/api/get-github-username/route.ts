@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
     
     // Get the GitHub user ID from the token
     const token = await getToken({ 
-      req: { cookies: cookies() } as any,
+      req: { cookies: await cookies() } as any,
       secret: process.env.NEXTAUTH_SECRET
     });
     
@@ -37,4 +37,4 @@ export async function GET(request: NextRequest) {
     console.error('Error getting GitHub username:', error);
     return NextResponse.json({ error: 'An error occurred' }, { status: 500 });
   }
-} 
+}
