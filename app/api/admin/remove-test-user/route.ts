@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
     
     // Get admin's GitHub ID and username
     const token = await getToken({ 
-      req: { cookies: cookies() } as any,
+      req: { cookies: await cookies() } as any,
       secret: process.env.NEXTAUTH_SECRET
     });
     
@@ -100,4 +100,4 @@ export async function POST(request: NextRequest) {
     console.error('Error removing test user:', error);
     return NextResponse.json({ error: error.message || 'An error occurred' }, { status: 500 });
   }
-} 
+}
