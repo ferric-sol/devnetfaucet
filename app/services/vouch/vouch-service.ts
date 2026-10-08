@@ -49,7 +49,7 @@ export async function isUserVouched(username: string): Promise<boolean> {
 /**
  * Vouch for a user
  */
-export async function vouchForUser(username: string, voucherUsername: string, voucherType: 'github' | 'upgraded'): Promise<boolean> {
+export async function vouchForUser(username: string, voucherUsername: string, voucherType: 'github' | 'upgraded' | 'x-follow'): Promise<boolean> {
   try {
     // Check if user is already vouched
     if (await isUserVouched(username)) {

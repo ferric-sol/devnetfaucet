@@ -9,6 +9,7 @@ import { authOptions } from './lib/auth';
 import { getToken } from "next-auth/jwt";
 import { cookies } from "next/headers";
 import { getUserCooldownExpiry, isUserInCooldown, setUserCooldown, resetUserCooldown, getCooldownRemainingTime } from './services/airdrop/cooldown-service';
+import { isFollowingTarget, normalizeXHandle, X_FOLLOW_TARGET } from './services/x/follow-service';
 
 interface Repository {
   url: string;
@@ -36,7 +37,7 @@ export interface VouchRecord {
   username: string;
   vouchedBy: string;
   timestamp: number;
-  voucherType: 'github' | 'upgraded';
+  voucherType: 'github' | 'upgraded' | 'x-follow';
 }
 
 // Helper function to safely use KV or fallback to in-memory storage
@@ -460,7 +461,7 @@ export async function isUserVouched(username: string): Promise<boolean> {
 }
 
 // Function to vouch for a user
-export async function vouchForUser(username: string, voucherUsername: string, voucherType: 'github' | 'upgraded'): Promise<boolean> {
+export async function vouchForUser(username: string, voucherUsername: string, voucherType: VouchRecord['voucherType']): Promise<boolean> {
   try {
     // Check if user is already vouched
     if (await isUserVouched(username)) {
@@ -709,6 +710,12 @@ export default async function airdrop(formData: FormData) {
     return 'NO_REPO_FOUND';
   }
 
+  // Whitelisted-only users (no repo, not vouched/upgraded) aren't paid out by
+  // performAirdrop, so send them through the follow-on-X flow as well
+  if (!hasRepo && !isVouched && !(await isUpgradedUser(githubUsername))) {
+    return 'NO_REPO_FOUND';
+  }
+
   // Check if this GitHub user has received an airdrop recently
   const isInCooldown = await isUserInCooldown(githubUsername);
   
@@ -863,4 +870,76 @@ export async function requestAccess(formData: FormData) {
 
   // Return a formatted response that includes success and the username for tweet generation
   return `${resultPrefix}:${githubUsername}:Access approved! You can now request an airdrop.`;
+}
+
+async function isUpgradedUser(githubUsername: string): Promise<boolean> {
+  const upgradedUsers = await kv.get('upgraded_users') as any[] || [];
+  return upgradedUsers.some(user => user.username === githubUsername.toLowerCase());
+}
+
+// Unlock 20 SOL airdrops for users not in the Solana ecosystem list by following @ferric on X
+export async function verifyXFollowAndAirdrop(formData: FormData) {
+  noStore();
+
+  const session = await getServerSession(authOptions);
+  if (!session || !session.user) {
+    return 'Please sign in with GitHub first';
+  }
+
+  const token = await getToken({
+    req: { cookies: await cookies() } as any,
+    secret: process.env.NEXTAUTH_SECRET
+  });
+
+  const githubUserId = token?.sub;
+  if (!githubUserId) {
+    return 'Unable to verify GitHub account';
+  }
+
+  const githubUsername = await fetchGitHubUsername(githubUserId);
+  if (!githubUsername) {
+    return 'Unable to verify GitHub account';
+  }
+
+  if (!(await isUserVouched(githubUsername))) {
+    const xHandle = normalizeXHandle((formData.get('xUsername') as string) || '');
+    if (!xHandle) {
+      return 'Please enter a valid X username';
+    }
+    const claimKey = xHandle.toLowerCase();
+
+    // Each X account can only unlock one GitHub account
+    const claimedBy = await kv.hget('x_follow_claims', claimKey) as string | null;
+    if (claimedBy && claimedBy !== githubUsername) {
+      return `@${xHandle} has already been used by another GitHub account`;
+    }
+
+    // Throttle follow checks, since each one costs a Monid API call
+    const allowed = await kv.set(`x_follow_check:${githubUsername}`, 1, { nx: true, ex: 15 });
+    if (!allowed) {
+      return 'Please wait a few seconds before checking again';
+    }
+
+    let following: boolean;
+    try {
+      following = await isFollowingTarget(xHandle);
+    } catch (error) {
+      console.error('Error checking X follow:', error);
+      return 'Could not verify your follow right now. Please try again in a minute.';
+    }
+
+    if (!following) {
+      return `We couldn't find @${xHandle} in @${X_FOLLOW_TARGET}'s followers. Follow @${X_FOLLOW_TARGET} on X, then try again.`;
+    }
+
+    const claimed = await kv.hsetnx('x_follow_claims', claimKey, githubUsername);
+    if (!claimed && (await kv.hget('x_follow_claims', claimKey)) !== githubUsername) {
+      return `@${xHandle} has already been used by another GitHub account`;
+    }
+
+    await vouchForUser(githubUsername, `x:@${xHandle}`, 'x-follow');
+    console.log(`GitHub user ${githubUsername} verified X follow as @${xHandle}`);
+  }
+
+  return await airdrop(formData);
 }
