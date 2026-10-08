@@ -74,3 +74,22 @@
     @apply bg-background text-foreground;
   }
 }
+/* Sponsor badge: rotating teal/cyan/green gradient border */
+@property --stakeware-angle {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
+}
+
+.stakeware-badge {
+  background: conic-gradient(from var(--stakeware-angle), #0e7490, #22d3ee, #34d399, #0e7490 40%, #0f172a 60%, #0e7490);
+  animation: stakeware-spin 6s linear infinite;
+}
+
+@keyframes stakeware-spin {
+  to { --stakeware-angle: 360deg; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stakeware-badge { animation: none; }
+}
