@@ -1,6 +1,7 @@
 import { getRecentAirdrops, AirdropRecord } from './airdrop';
 import { formatDistanceToNow } from 'date-fns';
 import { AirdropWithGithub } from './components/AirdropWithGithub';
+import { StakewareBadge } from './components/StakewareBadge';
 import { getServerSession } from "next-auth/next";
 import { authOptions } from './lib/auth';
 // import { RPCBanner } from './components/RPCBanner';
@@ -128,6 +129,10 @@ export default async function Home() {
           />
         </div>
         
+        <div className="relative mt-8 flex justify-center">
+          <StakewareBadge source="devnetfaucet" />
+        </div>
+
         {/* Display recent airdrops */}
         <div className="relative w-full mt-12">
           <RecentAirdrops airdrops={recentAirdrops} />
