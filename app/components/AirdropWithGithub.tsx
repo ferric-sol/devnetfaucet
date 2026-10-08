@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { Connection, PublicKey, clusterApiUrl, LAMPORTS_PER_SOL } from '@solana/web3.js';
 import { signIn, useSession } from "next-auth/react";
-import airdrop, { requestAccess } from "@/app/airdrop";
+import airdrop, { verifyXFollowAndAirdrop } from "@/app/airdrop";
 import VouchLink from "./VouchLink";
 
 interface AirdropWithGithubProps {
@@ -19,12 +19,9 @@ export function AirdropWithGithub({ faucetAddress, airdropAmount }: AirdropWithG
   const [faucetEmpty, setFaucetEmpty] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isAnonymous, setIsAnonymous] = useState(false);
-  const [showAccessRequest, setShowAccessRequest] = useState(false);
-  const [accessReason, setAccessReason] = useState('');
+  const [showFollowPrompt, setShowFollowPrompt] = useState(false);
+  const [xUsername, setXUsername] = useState('');
   const [showVouchBanner, setShowVouchBanner] = useState(false);
-  const [tweetText, setTweetText] = useState('');
-  const [showTweetPrompt, setShowTweetPrompt] = useState(false);
-  const [username, setUsername] = useState('');
 
   const handleAirdrop = async () => {
     if (!session) {
@@ -47,8 +44,8 @@ export function AirdropWithGithub({ faucetAddress, airdropAmount }: AirdropWithG
     try {
       const result = await airdrop(formData);
       if (result === 'NO_REPO_FOUND') {
-        setShowAccessRequest(true);
-        setAirdropResult('No eligible repository found in Solana ecosystem');
+        setShowFollowPrompt(true);
+        setAirdropResult('');
       } else {
         setAirdropResult(result);
         if (result === 'Airdrop successful') {
@@ -63,14 +60,9 @@ export function AirdropWithGithub({ faucetAddress, airdropAmount }: AirdropWithG
     }
   };
 
-  const handleRequestAccess = async () => {
+  const handleVerifyFollow = async () => {
     if (!session) {
       signIn("github");
-      return;
-    }
-
-    if (!accessReason.trim()) {
-      setAirdropResult('Please provide a reason for requesting access');
       return;
     }
 
@@ -79,64 +71,30 @@ export function AirdropWithGithub({ faucetAddress, airdropAmount }: AirdropWithG
       return;
     }
 
+    if (!xUsername.trim()) {
+      setAirdropResult('Please enter your X username');
+      return;
+    }
+
     setIsProcessing(true);
-    setAirdropResult('Submitting access request...');
+    setAirdropResult('Checking your follow...');
 
     try {
       const formData = new FormData();
-      formData.append('reason', accessReason.trim());
+      formData.append('xUsername', xUsername.trim());
       formData.append('walletAddress', walletAddress);
       formData.append('isAnonymous', isAnonymous.toString());
-      const result = await requestAccess(formData);
-      
-      if (result.startsWith('ACCESS_APPROVED:')) {
-        // Parse the response to get username and message
-        const parts = result.split(':');
-        const githubUsername = parts[1];
-        const message = parts.slice(2).join(':'); // In case the message itself contains ':'
-        
-        setUsername(githubUsername);
-        setAirdropResult(message);
-        
-        // Generate tweet text for vouching
-        const encodedTweetText = encodeURIComponent(
-          `I need SOL for testing on @solana devnet! Can someone vouch for me on DevNet Faucet? https://devnetfaucet.org/${githubUsername}/vouch #Solana #DevNet #DevNetFaucet`
-        );
-        setTweetText(encodedTweetText);
-        setShowTweetPrompt(true);
-      } else {
-        // Handle the old format for backwards compatibility
-        setAirdropResult(result);
-        
-        // If the result indicates access was approved, try to fetch the username for tweet sharing
-        if (result.includes('Access approved')) {
-          try {
-            const usernameResponse = await fetch('/api/get-github-username');
-            if (usernameResponse.ok) {
-              const data = await usernameResponse.json();
-              if (data.username) {
-                const encodedTweetText = encodeURIComponent(
-                  `I need SOL for testing on @solana devnet! Can someone vouch for me on DevNet Faucet? https://devnetfaucet.org/${data.username}/vouch #Solana #DevNet #DevNetFaucet`
-                );
-                setTweetText(encodedTweetText);
-                setShowTweetPrompt(true);
-                setUsername(data.username);
-              }
-            }
-          } catch (error) {
-            console.error('Error fetching GitHub username:', error);
-          }
-        }
-      }
-      
-      setShowAccessRequest(false);
-      setAccessReason('');
-      
-      if (result.includes('successful') || result.includes('approved')) {
+      const result = await verifyXFollowAndAirdrop(formData);
+
+      if (result === 'Airdrop successful') {
+        setShowFollowPrompt(false);
+        setAirdropResult(`Airdrop successful! ${airdropAmount} SOL is on its way.`);
         setShowVouchBanner(true);
+      } else {
+        setAirdropResult(result === 'NO_REPO_FOUND' ? 'Could not verify your follow. Please try again.' : result);
       }
     } catch (error) {
-      console.error('Error requesting access:', error);
+      console.error('Error verifying follow:', error);
       setAirdropResult('An error occurred. Please try again.');
     } finally {
       setIsProcessing(false);
@@ -238,71 +196,63 @@ export function AirdropWithGithub({ faucetAddress, airdropAmount }: AirdropWithG
         <div className={`w-full p-4 rounded-md ${
           airdropResult.includes('successful') || airdropResult.includes('approved')
             ? 'bg-green-100 text-green-800 dark:bg-green-800/30 dark:text-green-300'
+            : airdropResult.endsWith('...')
+              ? 'bg-gray-100 text-gray-800 dark:bg-zinc-800/50 dark:text-gray-300'
             : airdropResult.includes('Try again')
               ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-800/30 dark:text-yellow-300'
               : 'bg-red-100 text-red-800 dark:bg-red-800/30 dark:text-red-300'
         }`}>
           {airdropResult}
-          
-          {/* Show tweet prompt if access was approved */}
-          {showTweetPrompt && (
-            <div className="mt-4 p-3 rounded-md bg-blue-100 text-blue-800 dark:bg-blue-800/30 dark:text-blue-300">
-              <p className="font-medium mb-2">
-                Share this tweet to get someone to vouch for you and receive 20 SOL:
-              </p>
-              <a 
-                href={`https://twitter.com/intent/tweet?text=${tweetText}`}
+        </div>
+      )}
+
+      {showFollowPrompt && (
+        <div className="w-full p-4 rounded-md border-2 border-gray-300 dark:border-gray-600 space-y-4">
+          <p className="text-sm text-gray-700 dark:text-gray-300">
+            Your GitHub account isn&apos;t on the Solana ecosystem whitelist yet. Follow @ferric on X to unlock {airdropAmount} SOL.
+          </p>
+          <ol className="space-y-4">
+            <li className="flex items-center gap-3">
+              <span className="flex-none w-6 h-6 rounded-full bg-gray-900 text-white dark:bg-white dark:text-gray-900 text-sm font-medium flex items-center justify-center">1</span>
+              <a
+                href="https://x.com/ferric"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 inline-flex items-center"
+                className="px-4 py-2 bg-black text-white rounded-md hover:bg-gray-800 inline-flex items-center"
               >
-                <svg 
-                  xmlns="http://www.w3.org/2000/svg" 
-                  className="h-5 w-5 mr-2" 
-                  viewBox="0 0 24 24" 
-                  fill="currentColor"
-                >
-                  <path d="M24 4.557c-.883.392-1.832.656-2.828.775 1.017-.609 1.798-1.574 2.165-2.724-.951.564-2.005.974-3.127 1.195-.897-.957-2.178-1.555-3.594-1.555-3.179 0-5.515 2.966-4.797 6.045-4.091-.205-7.719-2.165-10.148-5.144-1.29 2.213-.669 5.108 1.523 6.574-.806-.026-1.566-.247-2.229-.616-.054 2.281 1.581 4.415 3.949 4.89-.693.188-1.452.232-2.224.084.626 1.956 2.444 3.379 4.6 3.419-2.07 1.623-4.678 2.348-7.29 2.04 2.179 1.397 4.768 2.212 7.548 2.212 9.142 0 14.307-7.721 13.995-14.646.962-.695 1.797-1.562 2.457-2.549z" />
+                <svg className="h-4 w-4 mr-2" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                  <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
                 </svg>
-                Tweet for a Vouch
+                Follow @ferric
               </a>
-              <p className="text-sm mt-2">
-                This will help you get a vouch from an existing Solana developer.
-              </p>
-            </div>
-          )}
-          
-          {showAccessRequest && (
-            <div className="mt-4 space-y-4">
-              <div>
-                <label htmlFor="accessReason" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Why do you need devnet SOL?
-                </label>
-                <textarea
-                  id="accessReason"
-                  value={accessReason}
-                  onChange={(e) => setAccessReason(e.target.value)}
-                  placeholder="I need devnet sol for..."
-                  className="w-full px-4 py-2 border-2 border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-zinc-700 dark:border-gray-600 dark:text-white"
-                  rows={3}
-                  required
-                />
-              </div>
+            </li>
+            <li className="flex items-center gap-3">
+              <span className="flex-none w-6 h-6 rounded-full bg-gray-900 text-white dark:bg-white dark:text-gray-900 text-sm font-medium flex items-center justify-center">2</span>
+              <input
+                id="xUsername"
+                value={xUsername}
+                onChange={(e) => setXUsername(e.target.value)}
+                placeholder="Your X username"
+                aria-label="Your X username"
+                autoComplete="off"
+                className="w-full px-4 py-2 border-2 border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-zinc-700 dark:border-gray-600 dark:text-white"
+              />
+            </li>
+            <li className="flex items-center gap-3">
+              <span className="flex-none w-6 h-6 rounded-full bg-gray-900 text-white dark:bg-white dark:text-gray-900 text-sm font-medium flex items-center justify-center">3</span>
               <button
-                onClick={handleRequestAccess}
-                className="w-full px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 focus:ring-4 focus:ring-purple-300 transition-all duration-200"
-                disabled={isProcessing || !accessReason.trim()}
+                onClick={handleVerifyFollow}
+                className="w-full px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-600 text-white font-medium rounded-md hover:opacity-90 focus:ring-4 focus:ring-blue-300 transition-all duration-200 disabled:opacity-50"
+                disabled={isProcessing || faucetEmpty || !xUsername.trim()}
               >
-                {isProcessing ? 'Submitting...' : 'Request Access & Create Vouch Request'}
+                {isProcessing ? 'Checking...' : "I've followed ferric"}
               </button>
-              
-              <div className="mt-4">
-                <div className="text-sm text-gray-700 dark:text-gray-300 mb-2">
-                  After requesting access, you&apos;ll be able to share a link to get vouched by an existing Solana developer.
-                </div>
-              </div>
-            </div>
-          )}
+            </li>
+            <li className="flex items-center gap-3 text-sm text-gray-700 dark:text-gray-300">
+              <span className="flex-none w-6 h-6 rounded-full bg-gray-900 text-white dark:bg-white dark:text-gray-900 text-sm font-medium flex items-center justify-center">4</span>
+              We drop {airdropAmount} SOL to your wallet.
+            </li>
+          </ol>
         </div>
       )}
 

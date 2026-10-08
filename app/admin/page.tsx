@@ -38,7 +38,7 @@ interface VouchRecord {
   username: string;
   vouchedBy: string;
   timestamp: number;
-  voucherType: 'github' | 'upgraded';
+  voucherType: 'github' | 'upgraded' | 'x-follow';
 }
 
 export default function AdminPage() {
