@@ -1,16 +1,29 @@
-// Verifies X (Twitter) follows of the faucet account via the Monid API.
+// Verifies X (Twitter) follows of the faucet account, and share posts, via the Monid API.
 //
 // Note: Monid's tikhub `fetch_check_follow` endpoint returns false negatives when
 // checking "does X follow @ferric", so instead we scan the newest pages of
 // @ferric's followers list (returned newest-first) for the handle.
 
 export const X_FOLLOW_TARGET = 'ferric';
+export const SHARE_DOMAIN = 'devnetfaucet.org';
+export const SHARE_TEXT = `I just got devnet SOL from https://${SHARE_DOMAIN}`;
 
 const MONID_API = 'https://api.monid.ai';
 const FOLLOWERS_ENDPOINT = '/api/v1/twitter/web/fetch_user_followers';
+const USER_POSTS_ENDPOINT = '/api/v1/twitter/web/fetch_user_post_tweet';
 const MAX_PAGES = 3; // ~200 most recent followers
 const RUN_TIMEOUT_MS = 30_000;
 const POLL_INTERVAL_MS = 1_500;
+
+interface Post {
+  text?: string;
+  entities?: { urls?: { expanded_url?: string }[] };
+}
+
+interface UserPostsPage {
+  pinned?: Post | null;
+  timeline?: Post[];
+}
 
 interface FollowersPage {
   followers?: { screen_name?: string }[];
@@ -45,15 +58,12 @@ async function monidFetch(path: string, init?: RequestInit) {
   return response.json();
 }
 
-async function fetchFollowersPage(cursor?: string): Promise<FollowersPage> {
-  const queryParams: Record<string, string> = { screen_name: X_FOLLOW_TARGET };
-  if (cursor) queryParams.cursor = cursor;
-
+async function runTikhub<T>(endpoint: string, queryParams: Record<string, string>): Promise<T> {
   const run = await monidFetch('/v1/run', {
     method: 'POST',
     body: JSON.stringify({
       provider: 'tikhub',
-      endpoint: FOLLOWERS_ENDPOINT,
+      endpoint,
       input: { queryParams },
     }),
   });
@@ -69,7 +79,13 @@ async function fetchFollowersPage(cursor?: string): Promise<FollowersPage> {
   if (result.status !== 'COMPLETED' || result.providerResponse?.httpStatus !== 200 || !result.output) {
     throw new Error(`Monid run ${run.runId} ended with ${result.status}`);
   }
-  return result.output as FollowersPage;
+  return result.output as T;
+}
+
+function fetchFollowersPage(cursor?: string): Promise<FollowersPage> {
+  const queryParams: Record<string, string> = { screen_name: X_FOLLOW_TARGET };
+  if (cursor) queryParams.cursor = cursor;
+  return runTikhub<FollowersPage>(FOLLOWERS_ENDPOINT, queryParams);
 }
 
 // Returns true if `handle` is among the most recent followers of X_FOLLOW_TARGET.
@@ -84,4 +100,14 @@ export async function isFollowingTarget(handle: string): Promise<boolean> {
     cursor = next_cursor;
   }
   return false;
+}
+
+// Returns true if one of `handle`'s ~20 most recent posts links to SHARE_DOMAIN.
+export async function hasPostedShareLink(handle: string): Promise<boolean> {
+  const { pinned, timeline = [] } = await runTikhub<UserPostsPage>(USER_POSTS_ENDPOINT, { screen_name: handle });
+  const posts = pinned ? [pinned, ...timeline] : timeline;
+  return posts.some(post =>
+    post.text?.toLowerCase().includes(SHARE_DOMAIN) ||
+    post.entities?.urls?.some(u => u.expanded_url?.toLowerCase().includes(SHARE_DOMAIN))
+  );
 }

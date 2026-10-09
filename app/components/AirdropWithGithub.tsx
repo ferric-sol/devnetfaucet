@@ -24,6 +24,7 @@ export function AirdropWithGithub({ faucetAddress, airdropAmount }: AirdropWithG
   const [showFollowPrompt, setShowFollowPrompt] = useState(false);
   const [xUsername, setXUsername] = useState('');
   const [showVouchBanner, setShowVouchBanner] = useState(false);
+  const [showShare, setShowShare] = useState(false);
 
   const handleAirdrop = async () => {
     if (!session) {
@@ -52,6 +53,7 @@ export function AirdropWithGithub({ faucetAddress, airdropAmount }: AirdropWithG
         setAirdropResult(result);
         if (result === 'Airdrop successful') {
           setShowVouchBanner(true);
+          setShowShare(true);
         }
       }
     } catch (error) {
@@ -79,7 +81,7 @@ export function AirdropWithGithub({ faucetAddress, airdropAmount }: AirdropWithG
     }
 
     setIsProcessing(true);
-    setAirdropResult('Checking your follow...');
+    setAirdropResult('Checking your follow and post...');
 
     try {
       const formData = new FormData();
@@ -211,7 +213,7 @@ export function AirdropWithGithub({ faucetAddress, airdropAmount }: AirdropWithG
       {showFollowPrompt && (
         <div className="w-full p-4 rounded-md border-2 border-gray-300 dark:border-gray-600 space-y-4">
           <p className="text-sm text-gray-700 dark:text-gray-300">
-            Your GitHub account isn&apos;t on the Solana ecosystem whitelist yet. Follow @ferric on X to unlock {airdropAmount} SOL.
+            Your GitHub account isn&apos;t on the Solana ecosystem whitelist yet. Follow @ferric and post about the faucet on X to unlock {airdropAmount} SOL.
           </p>
           <ol className="space-y-4">
             <li className="flex items-center gap-3">
@@ -230,6 +232,20 @@ export function AirdropWithGithub({ faucetAddress, airdropAmount }: AirdropWithG
             </li>
             <li className="flex items-center gap-3">
               <span className="flex-none w-6 h-6 rounded-full bg-gray-900 text-white dark:bg-white dark:text-gray-900 text-sm font-medium flex items-center justify-center">2</span>
+              <a
+                href={SHARE_TWEET_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-4 py-2 bg-black text-white rounded-md hover:bg-gray-800 inline-flex items-center"
+              >
+                <svg className="h-4 w-4 mr-2" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                  <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+                </svg>
+                Post about the faucet
+              </a>
+            </li>
+            <li className="flex items-center gap-3">
+              <span className="flex-none w-6 h-6 rounded-full bg-gray-900 text-white dark:bg-white dark:text-gray-900 text-sm font-medium flex items-center justify-center">3</span>
               <input
                 id="xUsername"
                 value={xUsername}
@@ -241,24 +257,24 @@ export function AirdropWithGithub({ faucetAddress, airdropAmount }: AirdropWithG
               />
             </li>
             <li className="flex items-center gap-3">
-              <span className="flex-none w-6 h-6 rounded-full bg-gray-900 text-white dark:bg-white dark:text-gray-900 text-sm font-medium flex items-center justify-center">3</span>
+              <span className="flex-none w-6 h-6 rounded-full bg-gray-900 text-white dark:bg-white dark:text-gray-900 text-sm font-medium flex items-center justify-center">4</span>
               <button
                 onClick={handleVerifyFollow}
                 className="w-full px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-600 text-white font-medium rounded-md hover:opacity-90 focus:ring-4 focus:ring-blue-300 transition-all duration-200 disabled:opacity-50"
                 disabled={isProcessing || faucetEmpty || !xUsername.trim()}
               >
-                {isProcessing ? 'Checking...' : "I've followed ferric"}
+                {isProcessing ? 'Checking...' : "I've followed & posted"}
               </button>
             </li>
             <li className="flex items-center gap-3 text-sm text-gray-700 dark:text-gray-300">
-              <span className="flex-none w-6 h-6 rounded-full bg-gray-900 text-white dark:bg-white dark:text-gray-900 text-sm font-medium flex items-center justify-center">4</span>
+              <span className="flex-none w-6 h-6 rounded-full bg-gray-900 text-white dark:bg-white dark:text-gray-900 text-sm font-medium flex items-center justify-center">5</span>
               We drop {airdropAmount} SOL to your wallet.
             </li>
           </ol>
         </div>
       )}
 
-      {showVouchBanner && (
+      {showShare && (
         <div className="w-full p-4 rounded-md border-2 border-gray-300 dark:border-gray-600 flex flex-col sm:flex-row items-center justify-between gap-3">
           <p className="text-sm text-gray-700 dark:text-gray-300 text-center sm:text-left">
             Got your SOL? Let people know where to find it.
