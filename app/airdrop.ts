@@ -9,7 +9,7 @@ import { authOptions } from './lib/auth';
 import { getToken } from "next-auth/jwt";
 import { cookies } from "next/headers";
 import { getUserCooldownExpiry, isUserInCooldown, setUserCooldown, resetUserCooldown, getCooldownRemainingTime } from './services/airdrop/cooldown-service';
-import { isFollowingTarget, normalizeXHandle, X_FOLLOW_TARGET } from './services/x/follow-service';
+import { hasPostedShareLink, isFollowingTarget, normalizeXHandle, X_FOLLOW_TARGET } from './services/x/follow-service';
 
 interface Repository {
   url: string;
@@ -878,6 +878,7 @@ async function isUpgradedUser(githubUsername: string): Promise<boolean> {
 }
 
 // Unlock 20 SOL airdrops for users not in the Solana ecosystem list by following @ferric on X
+// and posting about the faucet
 export async function verifyXFollowAndAirdrop(formData: FormData) {
   noStore();
 
@@ -921,15 +922,20 @@ export async function verifyXFollowAndAirdrop(formData: FormData) {
     }
 
     let following: boolean;
+    let posted: boolean;
     try {
-      following = await isFollowingTarget(xHandle);
+      [following, posted] = await Promise.all([isFollowingTarget(xHandle), hasPostedShareLink(xHandle)]);
     } catch (error) {
-      console.error('Error checking X follow:', error);
-      return 'Could not verify your follow right now. Please try again in a minute.';
+      console.error('Error checking X follow/post:', error);
+      return 'Could not verify your follow and post right now. Please try again in a minute.';
     }
 
     if (!following) {
       return `We couldn't find @${xHandle} in @${X_FOLLOW_TARGET}'s followers. Follow @${X_FOLLOW_TARGET} on X, then try again.`;
+    }
+
+    if (!posted) {
+      return `We couldn't find a post from @${xHandle} linking devnetfaucet.org. Post on X (step 2), then try again.`;
     }
 
     const claimed = await kv.hsetnx('x_follow_claims', claimKey, githubUsername);
