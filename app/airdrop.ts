@@ -872,6 +872,9 @@ export async function requestAccess(formData: FormData) {
   return `${resultPrefix}:${githubUsername}:Access approved! You can now request an airdrop.`;
 }
 
+const X_CHECK_ATTEMPTS = 3;
+const X_CHECK_RETRY_DELAY_MS = 10_000;
+
 async function isUpgradedUser(githubUsername: string): Promise<boolean> {
   const upgradedUsers = await kv.get('upgraded_users') as any[] || [];
   return upgradedUsers.some(user => user.username === githubUsername.toLowerCase());
@@ -915,16 +918,24 @@ export async function verifyXFollowAndAirdrop(formData: FormData) {
       return `@${xHandle} has already been used by another GitHub account`;
     }
 
-    // Throttle follow checks, since each one costs a Monid API call
-    const allowed = await kv.set(`x_follow_check:${githubUsername}`, 1, { nx: true, ex: 15 });
+    // Throttle follow checks, since each one costs Monid API calls (covers the retry window)
+    const allowed = await kv.set(`x_follow_check:${githubUsername}`, 1, { nx: true, ex: 60 });
     if (!allowed) {
-      return 'Please wait a few seconds before checking again';
+      return 'Please wait a minute before checking again';
     }
 
-    let following: boolean;
-    let posted: boolean;
+    // New follows/posts take ~15s to show up in X data, so re-check misses a couple of times
+    let following = false;
+    let posted = false;
     try {
-      [following, posted] = await Promise.all([isFollowingTarget(xHandle), hasPostedShareLink(xHandle)]);
+      for (let attempt = 0; attempt < X_CHECK_ATTEMPTS; attempt++) {
+        if (attempt > 0) await new Promise(resolve => setTimeout(resolve, X_CHECK_RETRY_DELAY_MS));
+        [following, posted] = await Promise.all([
+          following || isFollowingTarget(xHandle),
+          posted || hasPostedShareLink(xHandle),
+        ]);
+        if (following && posted) break;
+      }
     } catch (error) {
       console.error('Error checking X follow/post:', error);
       return 'Could not verify your follow and post right now. Please try again in a minute.';

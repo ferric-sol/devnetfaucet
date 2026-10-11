@@ -81,7 +81,7 @@ export function AirdropWithGithub({ faucetAddress, airdropAmount }: AirdropWithG
     }
 
     setIsProcessing(true);
-    setAirdropResult('Checking your follow and post...');
+    setAirdropResult('');
 
     try {
       const formData = new FormData();
@@ -263,7 +263,15 @@ export function AirdropWithGithub({ faucetAddress, airdropAmount }: AirdropWithG
                 className="w-full px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-600 text-white font-medium rounded-md hover:opacity-90 focus:ring-4 focus:ring-blue-300 transition-all duration-200 disabled:opacity-50"
                 disabled={isProcessing || faucetEmpty || !xUsername.trim()}
               >
-                {isProcessing ? 'Checking...' : "I've followed & posted"}
+                {isProcessing ? (
+                  <span className="inline-flex items-center justify-center gap-2">
+                    <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+                    </svg>
+                    Checking X...
+                  </span>
+                ) : "I've followed & posted"}
               </button>
             </li>
             <li className="flex items-center gap-3 text-sm text-gray-700 dark:text-gray-300">
