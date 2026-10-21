@@ -13,6 +13,17 @@ export function Footer() {
             <p className="text-sm text-gray-600 dark:text-gray-400">
               © {new Date().getFullYear()} DevNet Faucet. All rights reserved.
             </p>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1 text-center md:text-left">
+              Supported by{' '}
+              <Link
+                href="https://pumpdata.fun"
+                target="_blank"
+                rel="noopener"
+                className="font-medium text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 transition-colors"
+              >
+                pumpdata.fun
+              </Link>
+            </p>
           </div>
           
           <div className="flex flex-col items-center md:items-end">
