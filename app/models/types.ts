@@ -20,10 +20,6 @@ export interface Repository {
   missing?: boolean;
 }
 
-export interface TomlData {
-  repo?: Repository[];
-}
-
 // Define user types
 export interface WhitelistedUser {
   username: string;

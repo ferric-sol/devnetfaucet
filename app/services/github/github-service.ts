@@ -1,11 +1,15 @@
-import { parse as parseTOML } from '@iarna/toml';
-import { Repository, TomlData } from '@/app/models/types';
-import { kv } from "@vercel/kv";
-import { safeKvGet, safeKvSet, safeKvSetWithExpiry } from '@/app/services/storage/kv-storage';
+import { safeKvGet, safeKvSet } from '@/app/services/storage/kv-storage';
 
-// Cache key for the TOML data
-const TOML_CACHE_KEY = 'solana_ecosystem_github_usernames';
-const TOML_CACHE_EXPIRY = 60 * 60; // 1 hour in seconds
+// Solana ecosystem repo list (Electric Capital Open Dev Data export)
+const ECOSYSTEM_DATA_URL = process.env.ECOSYSTEM_DATA_URL
+  || 'https://raw.githubusercontent.com/ferric-sol/devnetfaucet/main/solana.jsonl';
+
+interface EcosystemEntry {
+  eco_name: string;
+  branch: string[];
+  repo_url: string;
+  tags: string[];
+}
 
 /**
  * Fetch GitHub username from GitHub API using user ID
@@ -87,86 +91,57 @@ export async function checkUserHasRepo(username: string): Promise<boolean> {
 }
 
 /**
- * Fetch and parse Solana ecosystem TOML file
+ * Fetch the Solana ecosystem repo list (Electric Capital Open Dev Data export,
+ * one JSON object per line) and return its GitHub repo URLs.
+ *
+ * Electric Capital no longer publishes per-ecosystem TOML files, so this reads
+ * the solana.jsonl committed to this repo. Override with ECOSYSTEM_DATA_URL.
  */
-export async function fetchAndParseToml(): Promise<TomlData> {
-  // Try to get the cached data first
-  try {
-    const cachedData = await safeKvGet<string[]>(TOML_CACHE_KEY);
-    if (cachedData) {
-      console.log('Using cached GitHub usernames from TOML');
-      return { repo: cachedData.map(username => ({ url: `https://github.com/${username}` })) };
-    }
-  } catch (error) {
-    console.log('Error getting cached TOML data:', error);
+export async function fetchEcosystemRepos(): Promise<string[]> {
+  const response = await fetch(ECOSYSTEM_DATA_URL, { cache: 'no-store' });
+  if (!response.ok) {
+    throw new Error(`Ecosystem data fetch failed: ${response.status} ${ECOSYSTEM_DATA_URL}`);
   }
 
-  // If cache miss or error, fetch the data
-  console.log('Fetching fresh TOML data');
-  const response = await fetch('https://raw.githubusercontent.com/electric-capital/crypto-ecosystems/refs/heads/master/data/ecosystems/s/solana.toml');
-  const tomlContent = await response.text();
-  const data = parseTOML(tomlContent) as TomlData;
-  
-  // Extract GitHub usernames and cache them
-  try {
-    const githubUsernames: string[] = [];
-    data.repo?.forEach(repo => {
-      const url = repo.url.toLowerCase();
-      if (url.includes('github.com/')) {
-        const match = url.match(/github\.com\/([a-z0-9-]+)/i);
-        if (match && match[1]) {
-          githubUsernames.push(match[1]);
-        }
+  const repoUrls: string[] = [];
+  for (const line of (await response.text()).split('\n')) {
+    if (!line.trim()) continue;
+    try {
+      const entry = JSON.parse(line) as EcosystemEntry;
+      if (entry.repo_url?.includes('github.com/')) {
+        repoUrls.push(entry.repo_url);
       }
-    });
-    
-    // Cache the extracted usernames
-    if (githubUsernames.length > 0) {
-      try {
-        await safeKvSetWithExpiry(TOML_CACHE_KEY, githubUsernames, TOML_CACHE_EXPIRY);
-        console.log(`Cached ${githubUsernames.length} GitHub usernames from TOML data`);
-      } catch (error) {
-        console.log('Error caching TOML data:', error);
-      }
+    } catch {
+      // Skip malformed lines rather than failing the whole refresh
     }
-  } catch (error) {
-    console.log('Error processing TOML data for caching:', error);
   }
-  
-  return data;
+  return repoUrls;
 }
 
 /**
- * Update the GitHub repos cache with the latest data
+ * Update the GitHub repos cache with the latest data.
+ * Writes the same keys as scripts/update_ecosystem_data.ts, with no expiry.
  */
 export async function updateGitHubReposCache(): Promise<void> {
   try {
-    const data = await fetchAndParseToml();
-    const repos = data.repo || [];
-    
-    // Extract all repository URLs
-    const repoUrls = repos.map(repo => repo.url);
-    
-    // Store in KV
-    await safeKvSet('solana_ecosystem_github_repos', repoUrls);
-    
-    // Extract GitHub usernames
-    const githubUsernames: string[] = [];
-    repos.forEach(repo => {
-      const url = repo.url.toLowerCase();
-      if (url.includes('github.com/')) {
-        const match = url.match(/github\.com\/([a-z0-9-]+)/i);
-        if (match && match[1]) {
-          githubUsernames.push(match[1]);
-        }
+    const repoUrls = await fetchEcosystemRepos();
+    if (repoUrls.length === 0) {
+      throw new Error('Ecosystem data was empty; keeping the existing cache');
+    }
+
+    const githubUsernames = new Set<string>();
+    for (const url of repoUrls) {
+      const match = url.match(/github\.com\/([a-zA-Z0-9-]+)/i);
+      if (match?.[1]) {
+        githubUsernames.add(match[1].toLowerCase());
       }
-    });
-    
-    // Store usernames in KV
-    await safeKvSet('solana_ecosystem_github_usernames', githubUsernames);
-    
-    console.log(`Updated GitHub repos cache with ${repoUrls.length} repos and ${githubUsernames.length} usernames`);
+    }
+
+    await safeKvSet('solana_ecosystem_github_repos', repoUrls);
+    await safeKvSet('solana_ecosystem_github_usernames', Array.from(githubUsernames));
+
+    console.log(`Updated GitHub repos cache with ${repoUrls.length} repos and ${githubUsernames.size} usernames`);
   } catch (error) {
     console.error('Error updating GitHub repos cache:', error);
   }
-} 
+}
