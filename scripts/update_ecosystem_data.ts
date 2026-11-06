@@ -1,14 +1,16 @@
 /**
  * Script to update Solana ecosystem data in KV store
- * 
- * Data Source: Electric Capital Crypto Ecosystems
- * https://github.com/electric-capital/crypto-ecosystems
- * 
- * This script processes data from Electric Capital's Crypto Ecosystems project,
- * which is licensed under MIT license with attribution.
- * 
+ *
+ * Data Source: Electric Capital Open Dev Data (formerly Crypto Ecosystems)
+ * https://github.com/electric-capital/open-dev-data
+ *
+ * Generate solana.jsonl with:
+ *   uvx open-dev-data export -e Solana solana.jsonl
+ *
+ * The data is licensed under MIT with attribution.
+ *
  * If you're working in open source crypto, submit your repository here to be counted:
- * https://github.com/electric-capital/crypto-ecosystems
+ * https://github.com/electric-capital/open-dev-data
  */
 
 import { kv } from "@vercel/kv";

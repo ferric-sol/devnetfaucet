@@ -49,30 +49,18 @@ Open [http://localhost:3000](http://localhost:3000) with your browser to see the
 
 ## Data Attribution
 
-This application uses data from the Electric Capital Crypto Ecosystems project to verify GitHub repositories associated with the Solana ecosystem.
+This application uses data from Electric Capital's [Open Dev Data](https://github.com/electric-capital/open-dev-data) taxonomy (formerly Crypto Ecosystems) to verify GitHub repositories associated with the Solana ecosystem.
 
-<table>
-  <tr>
-    <td>
-      <a href="https://github.com/electric-capital/crypto-ecosystems">
-        <img src="https://raw.githubusercontent.com/electric-capital/crypto-ecosystems/master/logo.png" alt="Electric Capital Logo" width="50">
-      </a>
-    </td>
-    <td>
-      <strong>Data Source:</strong> <a href="https://github.com/electric-capital/crypto-ecosystems">Electric Capital Crypto Ecosystems</a>
-      <br>
-      <small>If you're working in open source crypto, <a href="https://github.com/electric-capital/crypto-ecosystems">submit your repository here</a> to be counted.</small>
-    </td>
-  </tr>
-</table>
+**Data Source:** [Electric Capital Open Dev Data](https://opendevdata.org). If you're working in open source crypto, [submit your repository](https://github.com/electric-capital/open-dev-data) to be counted.
 
 The repository data is used to validate GitHub users requesting airdrops by checking if they contribute to the Solana ecosystem.
 
-To update the ecosystem data in your deployment, run:
+To update the ecosystem data in your deployment, export the Solana ecosystem and load it into KV:
 
 ```bash
-# First, download the latest solana.jsonl file
-# Then, run the update script
+# Export the latest Solana repos (requires uv)
+uvx open-dev-data export -e Solana solana.jsonl
+
+# Store them in KV (reads KV credentials from .env.local)
 npx tsx scripts/update_ecosystem_data.ts
 ```
-
