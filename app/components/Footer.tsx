@@ -30,20 +30,20 @@ export function Footer() {
             <div className="flex items-center space-x-2 mb-2">
               <span className="text-sm text-gray-600 dark:text-gray-400">Data Source:</span>
               <Link 
-                href="https://github.com/electric-capital/crypto-ecosystems" 
+                href="https://github.com/electric-capital/open-dev-data" 
                 target="_blank" 
                 rel="noopener noreferrer"
                 className="text-sm font-medium text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 transition-colors"
               >
-                Electric Capital Crypto Ecosystems
+                Electric Capital Open Dev Data
               </Link>
               <Link 
-                href="https://github.com/electric-capital/crypto-ecosystems" 
+                href="https://github.com/electric-capital/open-dev-data" 
                 target="_blank" 
                 rel="noopener noreferrer"
               >
                 <Image 
-                  src="https://raw.githubusercontent.com/electric-capital/crypto-ecosystems/master/logo.png" 
+                  src="https://avatars.githubusercontent.com/u/35904960?v=4" 
                   alt="Electric Capital Logo"
                   width={20}
                   height={20}
@@ -54,7 +54,7 @@ export function Footer() {
             <p className="text-xs text-gray-500 dark:text-gray-500 text-center md:text-right">
               If you&apos;re working in open source crypto, {' '}
               <Link 
-                href="https://github.com/electric-capital/crypto-ecosystems" 
+                href="https://github.com/electric-capital/open-dev-data" 
                 target="_blank" 
                 rel="noopener noreferrer"
                 className="underline hover:text-gray-700 dark:hover:text-gray-300"
