@@ -11,6 +11,8 @@ export const SHARE_TEXT = `I just got devnet SOL from https://${SHARE_DOMAIN}`;
 const MONID_API = 'https://api.monid.ai';
 const FOLLOWERS_ENDPOINT = '/api/v1/twitter/web/fetch_user_followers';
 const USER_POSTS_ENDPOINT = '/api/v1/twitter/web/fetch_user_post_tweet';
+const USER_PROFILE_ENDPOINT = '/api/v1/twitter/web/fetch_user_profile';
+const MIN_ACCOUNT_AGE_DAYS = 30;
 const MAX_PAGES = 3; // ~200 most recent followers
 const RUN_TIMEOUT_MS = 30_000;
 const POLL_INTERVAL_MS = 1_500;
@@ -100,6 +102,13 @@ export async function isFollowingTarget(handle: string): Promise<boolean> {
     cursor = next_cursor;
   }
   return false;
+}
+
+// Returns true if `handle` was created at least MIN_ACCOUNT_AGE_DAYS ago.
+export async function isEligibleAccount(handle: string): Promise<boolean> {
+  const { created_at } = await runTikhub<{ created_at?: string }>(USER_PROFILE_ENDPOINT, { screen_name: handle });
+  const createdAt = Date.parse(created_at ?? '');
+  return !Number.isNaN(createdAt) && Date.now() - createdAt >= MIN_ACCOUNT_AGE_DAYS * 24 * 60 * 60 * 1000;
 }
 
 // Returns true if one of `handle`'s ~20 most recent posts links to SHARE_DOMAIN.

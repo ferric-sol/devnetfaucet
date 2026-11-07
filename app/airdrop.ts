@@ -8,7 +8,7 @@ import { authOptions } from './lib/auth';
 import { getToken } from "next-auth/jwt";
 import { cookies } from "next/headers";
 import { getUserCooldownExpiry, isUserInCooldown, setUserCooldown, resetUserCooldown, getCooldownRemainingTime } from './services/airdrop/cooldown-service';
-import { hasPostedShareLink, isFollowingTarget, normalizeXHandle, X_FOLLOW_TARGET } from './services/x/follow-service';
+import { hasPostedShareLink, isEligibleAccount, isFollowingTarget, normalizeXHandle, X_FOLLOW_TARGET } from './services/x/follow-service';
 
 // In-memory fallback for KV storage when environment variables are missing
 const inMemoryStore = new Map<string, number>();
@@ -867,6 +867,11 @@ export async function verifyXFollowAndAirdrop(formData: FormData) {
     let following = false;
     let posted = false;
     try {
+      if (!(await isEligibleAccount(xHandle))) {
+        console.log(`GitHub user ${githubUsername} rejected: @${xHandle} is too new`);
+        return `@${xHandle} isn't eligible for the faucet.`;
+      }
+
       for (let attempt = 0; attempt < X_CHECK_ATTEMPTS; attempt++) {
         if (attempt > 0) await new Promise(resolve => setTimeout(resolve, X_CHECK_RETRY_DELAY_MS));
         [following, posted] = await Promise.all([
